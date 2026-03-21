@@ -1,0 +1,300 @@
+/*
+Layer,              Purpose,                    Example
+
+@theme,             Variables/Design Tokens,    --color-primary: #3b82f6;
+@layer  base,       Global HTML tag resets,     body { background: var(--bg); }
+@layer components,  Reusable UI patterns,       .ladder-rung { ... }
+@utility,           Single-purpose helpers,     .rotate-custom { transform: rotate(2deg); }
+*/
+
+
+/* 
+1. Tokens (Design decisions)
+    @layer base { 
+        :root {
+            --bg: 255 255 255;
+            --fg: 0 0 0;
+        }
+
+        .dark {
+            --bg: 0 0 0
+            --fg: 255 255 255
+        }
+
+        --||--
+
+    }
+2. Base (Global defaults)
+    @layer base { 
+        
+        --||--
+
+        body {
+            background: rgb(var(--bg));
+            color: rgb(var(--fg));
+        }
+        
+        h1 {
+            font-weight: 700;
+        }
+    }
+3. Components (Reusable UI building blocks)
+    @layer components {
+        .ui-btn {
+            border:border: 1px solid rgb(var(--border)); 
+        }
+
+        .ui-btn:hover {
+            transform: scale(1.05);
+        }
+    }
+4. Utilities (Single-purpose helpers)
+    Inliny styles like mt-4, flex, gap-6...
+5. State (Dark mode, data-state, aria-state)
+ */
+
+
+
+
+
+
+@import "tailwindcss";
+
+/* -------------------------------------------------
+1) TOKENS (design decisions)
+-------------------------------------------------- */
+@layer base {
+    :root {
+        /* black/white theme tokens */
+        --bg: 255 255 255;
+        /* light background */
+        --fg: 0 0 0;
+        /* light text */
+        --border: 0 0 0;
+        /* light borders */
+        --muted-fg: 60 60 60;
+
+        --ring: 0 0 0;
+        --radius: 14px;
+
+        --fs-h1: 2.25rem;
+        --fs-body: 1rem;
+        --fs-sm: 0.875rem;
+
+        --visited: 150 150 150;
+    }
+
+    /* When .dark is present on <html> (or any ancestor), override tokens */
+    .dark {
+        --bg: 0 0 0;
+        /* dark background */
+        --fg: 255 255 255;
+        /* dark text */
+        --border: 255 255 255;
+        /* dark borders */
+        --muted-fg: 200 200 200;
+
+        --ring: 255 255 255;
+    }
+}
+
+/* -------------------------------------------------
+2) BASE (global defaults)
+-------------------------------------------------- */
+@layer base {
+    html {
+        /* helps form controls match theme */
+        color-scheme: light;
+    }
+
+    html.dark {
+        color-scheme: dark;
+    }
+
+    body {
+        background: rgb(var(--bg));
+        color: rgb(var(--fg));
+        font-size: var(--fs-body);
+        @apply antialiased;
+    }
+
+    header {}
+
+    h1 {
+        font-size: var(--fs-h1);
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+    }
+
+    p {
+        color: rgb(var(--muted-fg));
+    }
+
+    /* a {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    } */
+
+    /* a:visited {
+        color: rgb(var(--visited));
+    } */
+
+    :focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px rgb(var(--ring));
+    }
+}
+
+/* -------------------------------------------------
+3) COMPONENTS (reusable building blocks)
+-------------------------------------------------- */
+@layer components {
+
+    .shell-div {
+        height: 100dvh;
+        width: 100dvw;
+        display: flex;
+        flex-direction: column;
+        background-color: rgb(var(--bg));
+        color: rgb(var(--fg));
+    }
+
+    .shell-header {
+        position: sticky;
+        top: 0px;
+        z-index: 50;
+        margin-top: 5px;
+
+        display: flex;
+        flex-direction: row;
+    }
+
+    .shell-header:first-child {
+        margin-left: 5px;
+    }
+
+    .shell-header nav {
+        margin-left: auto;
+        margin-right: 5px;
+    }
+
+    .shell-nav {}
+
+    .ui-btn {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgb(var(--border));
+        border-radius: var(--radius);
+        padding: 0.5rem 1rem;
+        background: transparent;
+        color: rgb(var(--fg));
+        transition: color 200ms ease;
+    }
+
+    .ui-btn:hover {
+        color: rgb(var(--muted-fg));
+        border: 1px solid rgb(var(--muted-fg));
+    }
+
+    .ui-surface-inverse {
+        background: rgb(var(--fg));
+        color: rgb(var(--bg));
+        border-color: rgb(var(--fg));
+    }
+
+    .ladder-link {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        
+        padding: 8px 12px;
+
+        border: 0;
+        border-radius: var(--radius);
+
+        background: transparent;
+        color: rgb(var(--fg));
+        text-decoration: none;
+
+        transition: transform 250ms ease, background-color 250ms ease;
+        transform-origin: center;
+    }
+
+    .ladder-link:hover {
+        background: rgb(var(--fg) / 0.15);
+        border: 1px solid rgb(var(--fg) / 0.9);
+    }
+
+    /* tilt variants */
+    .ladder-tilt-right:hover {
+        transform: scaleX(1.08) scaleY(1.05) rotate(2deg);
+    }
+
+    .ladder-tilt-left:hover {
+        transform: scaleX(1.08) scaleY(1.05) rotate(-4deg);
+    }
+
+    /* active route state */
+    .ladder-link.is-active {
+        font-weight: 700;
+    }
+
+    /* text nudge on hover */
+    .ladder-link-text {
+        font-size: var(--fs-sm);
+        transition: transform 250ms ease;
+    }
+
+    .ladder-link:hover .ladder-link-text {
+        transform: translateX(4px);
+    }
+
+    /* underline animation (expands left->right) */
+    .ladder-link-underline {
+        position: absolute;
+        left: 10px;
+        right: 10px;
+        bottom: 6px;
+
+        height: 2px;
+        background: rgb(var(--fg));
+
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 250ms ease;
+    }
+
+    .ladder-link:hover .ladder-link-underline {
+        transform: scaleX(1);
+    }
+
+    /* Optional: show underline when active even without hover */
+    .ladder-link.is-active .ladder-link-underline {
+        transform: scaleX(1);
+    }
+}
+
+/* 4) Utilities = Tailwind utilities in your JSX */
+@layer utitilies {
+
+    @keyframes pulse-animation {
+        0% {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.05);
+        }
+
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    .pulse {
+        animation: pulse-animation 0.6s infinite ease-in-out;
+    }
+}
+
+/* 5) State = .dark on html + data/aria states in markup */
