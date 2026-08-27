@@ -67,11 +67,11 @@ Make the current work recoverable and establish exactly what exists before restr
 - [x] Identify current uncommitted and untracked work. **Codex**
 - [x] Confirm `my-backend` is the newest Go iteration, while `backend-go` is the more feature-complete predecessor. **Codex**
 - [x] Confirm the backend remains Go rather than NestJS/JavaScript. **David**
-- [ ] Review the current changes and separate intentional work from experiments. **Pair**
+- [x] Review the current changes and separate intentional work from experiments. **Pair**
 - [ ] Decide whether to make `my-backend` canonical and port the missing working features from `backend-go`. **Pair**
-- [ ] Checkpoint the current work before retiring either reference implementation. **Pair**
-- [ ] Create a safety branch or baseline commit after the review. **David or Codex, by agreement**
-- [ ] Confirm `.env` is ignored and no secrets are tracked. **Codex review**
+- [x] Checkpoint the current work before retiring either reference implementation. **Pair**
+- [x] Create and push the `codex/pre-refactor-checkpoint` safety branch. **David**
+- [x] Confirm `.env` is ignored and no obvious secrets are tracked. **Codex review**
 - [ ] Record commands that currently build, test, and start each component. **Pair**
 - [ ] Run the baseline checks and record known failures rather than fixing them silently. **Codex**
 
