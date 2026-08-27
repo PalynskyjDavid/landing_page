@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const DEFAULT_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 const DEFAULT_TIMEOUT_MS = 10000;
 
 const clientHooks = {

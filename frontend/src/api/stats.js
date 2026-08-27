@@ -3,7 +3,7 @@ import { apiClient } from "../lib/apiClient.js";
 export function getStats(params = {}, options = {}) {
   return apiClient.request({
     method: "GET",
-    path: "/events/summary",
+    path: "/stats/summary",
     params,
     ...options,
   });

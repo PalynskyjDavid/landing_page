@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS stats_summary;
+DROP TABLE IF EXISTS scores;
