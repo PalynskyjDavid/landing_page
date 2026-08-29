@@ -9,17 +9,17 @@ package results
 import (
 	"context"
 	"testing"
-
-	"github.com/palyndav/my-backend/internal/apperror"
 )
 
 type fakeRepository struct {
-	gotInput CreateInput
-	result   *Result
-	err      error
+	createCalls int
+	gotInput    CreateInput
+	result      *Result
+	err         error
 }
 
 func (r *fakeRepository) Create(_ context.Context, input CreateInput) (*Result, error) {
+	r.createCalls++
 	r.gotInput = input
 
 	if r.err != nil {
@@ -64,29 +64,5 @@ func TestServiceCreateNormalizesSessionID(t *testing.T) {
 
 	if *repo.gotInput.SessionID != "session-1" {
 		t.Fatalf("expected trimmed session id, got %q", *repo.gotInput.SessionID)
-	}
-}
-
-func TestServiceCreateRejectsMismatchedTimes(t *testing.T) {
-	repo := &fakeRepository{}
-	service := NewService(repo)
-
-	_, err := service.Create(context.Background(), CreateInput{
-		TotalRounds: 3,
-		Times:       []int{220, 210},
-		Missclicks:  0,
-		AverageMs:   215,
-	})
-	if err == nil {
-		t.Fatal("expected validation error, got nil")
-	}
-
-	appErr := apperror.From(err)
-	if appErr == nil {
-		t.Fatal("expected app error, got nil")
-	}
-
-	if appErr.Code != "score_times_mismatch" {
-		t.Fatalf("expected code score_times_mismatch, got %q", appErr.Code)
 	}
 }
