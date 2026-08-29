@@ -1,0 +1,102 @@
+version: "3"
+
+vars:
+  BACKEND_DIR: my-backend
+  FRONTEND_DIR: frontend
+
+tasks:
+  default:
+    desc: Run the complete read-only quality check
+    cmds:
+      - task: check
+
+  check:
+    desc: Run formatting checks, linters, tests, and production builds
+    cmds:
+      - task: format:check
+      - task: lint
+      - task: test
+      - task: build
+
+  format:
+    desc: Rewrite backend and frontend files using their formatters
+    cmds:
+      - task: backend:format
+      - task: frontend:format
+
+  format:check:
+    desc: Report formatting differences without rewriting files
+    cmds:
+      - task: backend:format:check
+      - task: frontend:format:check
+
+  lint:
+    desc: Run backend and frontend static analysis
+    cmds:
+      - task: backend:lint
+      - task: frontend:lint
+
+  test:
+    desc: Run the current automated test suites
+    cmds:
+      - task: backend:test
+
+  build:
+    desc: Build the backend and frontend
+    cmds:
+      - task: backend:build
+      - task: frontend:build
+
+  backend:format:
+    desc: Rewrite Go files using configured formatters
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - golangci-lint fmt
+
+  backend:format:check:
+    desc: Display Go formatting differences
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - golangci-lint fmt --diff
+
+  backend:lint:
+    desc: Run Go static analysis, including formatter checks
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - golangci-lint run
+
+  backend:test:
+    desc: Run all Go tests
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go test ./...
+
+  backend:build:
+    desc: Compile the Go API without writing a repository binary
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go build -buildvcs=false ./...
+
+  frontend:format:
+    desc: Rewrite frontend files with Prettier
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm run format
+
+  frontend:format:check:
+    desc: Check frontend formatting with Prettier
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm run format:check
+
+  frontend:lint:
+    desc: Run ESLint with warnings treated as failures
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm run lint
+
+  frontend:build:
+    desc: Create the Vite production build
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm run build

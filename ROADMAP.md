@@ -72,8 +72,8 @@ Make the current work recoverable and establish exactly what exists before restr
 - [x] Checkpoint the current work before retiring either reference implementation. **Pair**
 - [x] Create and push the `codex/pre-refactor-checkpoint` safety branch. **David**
 - [x] Confirm `.env` is ignored and no obvious secrets are tracked. **Codex review**
-- [ ] Record commands that currently build, test, and start each component. **Pair**
-- [ ] Run the baseline checks and record known failures rather than fixing them silently. **Codex**
+- [x] Record commands that currently build and test each active component. Startup commands remain a Stage 2 task. **Pair**
+- [x] Run the baseline checks and record known failures rather than fixing them silently. **Codex**
 
 ### Exit criteria
 
@@ -141,6 +141,14 @@ Depends on Stages 1 and 2.
 
 Frontend and backend work can proceed in parallel after Stage 2; contract-dependent tests also require Stage 3.
 
+### Shared tooling
+
+- [x] Add one read-only local quality command for formatting, linting, tests, and builds. **Codex setup**
+- [x] Pin and document the initial Node.js, Task, golangci-lint, and Prettier versions. **Codex setup**
+- [ ] Manually resolve the baseline formatting findings. **David; Codex reviews**
+- [ ] Manually resolve the baseline lint findings. **David; Codex reviews**
+- [ ] Review dependency-audit findings without applying an automatic bulk upgrade. **Pair**
+
 ### Frontend
 
 - [ ] Plan an incremental JavaScript-to-TypeScript migration. **Pair**
@@ -153,7 +161,7 @@ Frontend and backend work can proceed in parallel after Stage 2; contract-depend
 
 - [ ] Expand Go service and handler unit tests. **David**
 - [ ] Add PostgreSQL repository integration tests. **David**
-- [ ] Add formatting, `go vet`, and lint checks. **Codex setup**
+- [x] Add formatting, `go vet`, and lint checks. **Codex setup**
 - [ ] Test configuration and graceful shutdown behavior. **David**
 - [ ] Test migrations from an empty database. **Pair**
 
