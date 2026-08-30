@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
-	"log/slog"
 
 	"github.com/palyndav/my-backend/internal/config"
 	"github.com/palyndav/my-backend/internal/database/postgresql"
@@ -33,7 +33,6 @@ func main() {
 
 	//todo
 	logger := slog.Default()
-
 
 	resultsRepository := results.NewRepository(db)
 	//statsRepository := stats.NewRepository(db)

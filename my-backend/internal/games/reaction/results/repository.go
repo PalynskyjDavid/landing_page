@@ -10,7 +10,6 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-
 // Context - lifecycle, cancellation and timeouts of requests.
 // ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 // defer cancel()
@@ -25,7 +24,7 @@ type Repository interface {
 // Wihtout queryRower interface we would have to do
 // type PostgresRepository struct {
 //	db *pgxpool.Pool }
-// or 
+// or
 // { db pgx.Tx } for transactions
 // or
 // { db pgx.Conn } for single connection.

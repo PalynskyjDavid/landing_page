@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/palyndav/my-backend/internal/config"
-	
+
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
