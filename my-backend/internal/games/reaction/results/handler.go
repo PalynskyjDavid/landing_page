@@ -51,6 +51,7 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//nolint:staticcheck // Keep the transport-to-service mapping explicit so the types can evolve independently.
 	result, err := h.service.Create(r.Context(), CreateInput{
 		TotalRounds: request.TotalRounds,
 		Times:       request.Times,
