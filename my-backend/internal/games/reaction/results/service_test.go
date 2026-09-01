@@ -1,13 +1,8 @@
 package results
 
-// Behave as signle test file
-// go test ./internal/games/reaction/results
-// go test -v ./internal/games/reaction/results
-// Behaves as whole package test so imports work properly
-// go test ./internal/games/reaction/results -run TestService
-
 import (
 	"context"
+	"errors"
 	"testing"
 )
 
@@ -36,6 +31,38 @@ func (r *fakeRepository) Create(_ context.Context, input CreateInput) (*Result, 
 	}
 
 	return r.result, nil
+}
+
+// Each call creates fresh input so tests can change it independently.
+func validCreateInput() CreateInput {
+	return CreateInput{
+		TotalRounds: 3,
+		Times:       []int{220, 210, 230},
+		Missclicks:  0,
+		AverageMs:   220,
+	}
+}
+
+func TestServiceCreateReturnsRepositoryError(t *testing.T) {
+	// Arrange: valid input should reach a repository configured to fail.
+	repositoryError := errors.New("database unavailable")
+	repo := &fakeRepository{err: repositoryError}
+	service := NewService(repo)
+	input := validCreateInput()
+
+	// Act: call the real service, not the fake repository directly.
+	result, err := service.Create(context.Background(), input)
+
+	// Assert: the service returns no result and preserves the repository error.
+	if result != nil {
+		t.Fatalf("expected nil result, got %#v", result)
+	}
+	if !errors.Is(err, repositoryError) {
+		t.Fatalf("expected repository error %v, got %v", repositoryError, err)
+	}
+	if repo.createCalls != 1 {
+		t.Fatalf("expected repository to be called once, got %d calls", repo.createCalls)
+	}
 }
 
 func TestServiceCreateNormalizesSessionID(t *testing.T) {

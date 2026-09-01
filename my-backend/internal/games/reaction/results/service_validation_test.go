@@ -7,15 +7,6 @@ import (
 	"github.com/palyndav/my-backend/internal/apperror"
 )
 
-func validCreateInput() CreateInput {
-	return CreateInput{
-		TotalRounds: 3,
-		Times:       []int{220, 210, 230},
-		Missclicks:  0,
-		AverageMs:   220,
-	}
-}
-
 func requireErrorCode(t *testing.T, err error, wantCode string) {
 	t.Helper()
 
@@ -86,9 +77,12 @@ func TestServiceCreateRejectsInvalidInput(t *testing.T) {
 			input := validCreateInput()
 			test.change(&input)
 
-			_, err := service.Create(context.Background(), input)
+			result, err := service.Create(context.Background(), input)
 
 			requireErrorCode(t, err, test.wantCode)
+			if result != nil {
+				t.Fatalf("expected nil result, got %#v", result)
+			}
 			if repo.createCalls != 0 {
 				t.Fatalf("expected repository not to be called, got %d calls", repo.createCalls)
 			}
