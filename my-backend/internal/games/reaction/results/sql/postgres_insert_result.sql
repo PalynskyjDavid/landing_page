@@ -4,7 +4,7 @@ INSERT INTO scores (
     missclicks,
     average_ms,
     session_id
-) values (
+) VALUES (
     @total_rounds,
     @times::jsonb,
     @missclicks,
@@ -12,5 +12,3 @@ INSERT INTO scores (
     @session_id
 )
 RETURNING id, created_at;
-
--- Defines which values should be provided.

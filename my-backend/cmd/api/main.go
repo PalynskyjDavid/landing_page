@@ -34,7 +34,7 @@ func main() {
 	//todo
 	logger := slog.Default()
 
-	resultsRepository := results.NewRepository(db)
+	resultsRepository := results.NewPostgresRepository(db)
 	//statsRepository := stats.NewRepository(db)
 	resultsService := results.NewService(resultsRepository)
 	// statsService := stats.NewService(statsRepository)
