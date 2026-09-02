@@ -39,3 +39,8 @@ INSERT INTO stats_summary (
     NOW()
 )
 ON CONFLICT (id) DO NOTHING;
+
+---- create above / drop below ----
+
+DROP TABLE IF EXISTS stats_summary;
+DROP TABLE IF EXISTS scores;

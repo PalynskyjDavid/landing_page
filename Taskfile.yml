@@ -2,6 +2,7 @@ version: "3"
 
 vars:
   BACKEND_DIR: my-backend
+  BACKEND_TOOLS_DIR: my-backend/tools
   FRONTEND_DIR: frontend
 
 tasks:
@@ -46,6 +47,55 @@ tasks:
     cmds:
       - task: backend:build
       - task: frontend:build
+
+  db:setup:
+    desc: Start PostgreSQL, wait until it is healthy, and apply all migrations
+    cmds:
+      - task: db:up
+      - task: db:migrate
+
+  db:up:
+    desc: Start only the local PostgreSQL service and wait until it is healthy
+    dotenv: [".env"]
+    cmds:
+      - docker compose up -d --wait db
+
+  db:stop:
+    desc: Stop PostgreSQL without deleting its data volume
+    dotenv: [".env"]
+    cmds:
+      - docker compose stop db
+
+  db:status:
+    desc: Show the local PostgreSQL container status
+    dotenv: [".env"]
+    cmds:
+      - docker compose ps db
+
+  db:logs:
+    desc: Show the latest PostgreSQL container logs
+    dotenv: [".env"]
+    cmds:
+      - docker compose logs db --tail 100
+
+  db:migrate:
+    desc: Apply pending PostgreSQL migrations with the pinned Tern version
+    dotenv: [".env"]
+    cmds:
+      - go -C "{{.BACKEND_TOOLS_DIR}}" tool tern migrate --config ../tern.conf --migrations ../migrations
+
+  db:migration:status:
+    desc: Show applied and pending PostgreSQL migrations
+    dotenv: [".env"]
+    cmds:
+      - go -C "{{.BACKEND_TOOLS_DIR}}" tool tern status --config ../tern.conf --migrations ../migrations
+
+  db:migration:new:
+    desc: "Create the next migration (usage: task db:migration:new NAME=add_leaderboard_identity)"
+    requires:
+      vars: [NAME]
+    cmds:
+      - go -C "{{.BACKEND_TOOLS_DIR}}" tool tern new --migrations ../migrations "{{.NAME}}"
 
   backend:format:
     desc: Rewrite Go files using configured formatters

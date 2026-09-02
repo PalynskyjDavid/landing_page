@@ -68,7 +68,7 @@ Make the current work recoverable and establish exactly what exists before restr
 - [x] Confirm `my-backend` is the newest Go iteration, while `backend-go` is the more feature-complete predecessor. **Codex**
 - [x] Confirm the backend remains Go rather than NestJS/JavaScript. **David**
 - [x] Review the current changes and separate intentional work from experiments. **Pair**
-- [ ] Decide whether to make `my-backend` canonical and port the missing working features from `backend-go`. **Pair**
+- [x] Make `my-backend` canonical and port only the required working features from `backend-go`. See ADR 0001. **Pair**
 - [x] Checkpoint the current work before retiring either reference implementation. **Pair**
 - [x] Create and push the `codex/pre-refactor-checkpoint` safety branch. **David**
 - [x] Confirm `.env` is ignored and no obvious secrets are tracked. **Codex review**
@@ -93,7 +93,7 @@ Agree on what the application is and select one maintainable technical direction
 - [x] Write a short product statement: audience, purpose, and primary user journey. **David**
 - [x] Define the initial portfolio, reaction-game, leaderboard, and reliability-lab journeys. **David**
 - [ ] Decide whether analytics remains a developer page or becomes a product feature. **Pair**
-- [ ] Select the canonical Go backend after comparing architectural quality and feature completeness. **Pair**
+- [x] Select `my-backend` as the canonical Go backend after comparing architectural quality and feature completeness. See ADR 0001. **Pair**
 - [x] Reject NestJS as the production backend; Go is the learning and implementation language. **David**
 - [ ] If `my-backend` is selected, port required stats, worker, logging, Docker, and migration tooling from `backend-go`. **Pair**
 - [ ] Archive or remove the unselected Go implementation only after feature parity and verification. **Pair**
@@ -101,7 +101,7 @@ Agree on what the application is and select one maintainable technical direction
 - [ ] Decide whether the separate statistics worker is justified. **Pair**
 - [x] Defer authentication until business requirements justify it; use anonymous identity initially. **David**
 - [x] Defer Kubernetes, microservices, and real infrastructure controls until later milestones. **David**
-- [ ] Record decisions as short Architecture Decision Records under `docs/decisions/`. **Pair**
+- [x] Start recording decisions as short Architecture Decision Records under `docs/decisions/`. **Pair**
 
 ### Exit criteria
 
@@ -118,7 +118,7 @@ Depends on Stage 1.
 - [ ] Consolidate or archive duplicate backends without deleting history. **Pair**
 - [ ] Create one reliable local startup command. **Pair**
 - [ ] Normalize environment-variable names and validation. **David**
-- [ ] Make database migrations reproducible. **David**
+- [x] Make database migrations reproducible with a pinned Tern tool and Task commands. **Pair**
 - [ ] Add seed data for local development and tests. **David**
 - [ ] Add health and readiness checks. **David**
 - [ ] Document setup, startup, shutdown, and reset procedures. **Pair**
@@ -136,6 +136,8 @@ Depends on Stages 1 and 2.
 - [ ] Decide whether to generate Go server types and frontend client types. **Pair**
 - [ ] Define migration ownership and compatibility rules. **Pair**
 - [ ] Remove or implement orphaned frontend calls such as `/events`. **David**
+
+The first draft contract is recorded in `docs/contracts/reaction-results-api.md`. It separates the currently implemented score submission from proposed leaderboard and identity changes; open decisions must be resolved before it is promoted to OpenAPI.
 
 ## Stage 4 — Quality foundations
 
@@ -163,7 +165,7 @@ Frontend and backend work can proceed in parallel after Stage 2; contract-depend
 - [ ] Add PostgreSQL repository integration tests. **David**
 - [x] Add formatting, `go vet`, and lint checks. **Codex setup**
 - [ ] Test configuration and graceful shutdown behavior. **David**
-- [ ] Test migrations from an empty database. **Pair**
+- [x] Test migrations from an empty PostgreSQL database. **Pair**
 
 ## Stage 5 — Feature redesign
 
@@ -242,7 +244,6 @@ Depends on successful staging operation and observable failure modes.
 
 ## Decisions still needed
 
-- Should `my-backend` become canonical while the missing working features are ported from `backend-go`?
 - What exact projects and supporting links belong on the portfolio home page?
 - Which features belong in the first complete release?
 - What anonymous identity and display-name rules should the leaderboard use?

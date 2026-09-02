@@ -6,6 +6,7 @@
 - Node.js 22.17.0, as declared by `.nvmrc`.
 - Task 3.53.1.
 - golangci-lint 2.13.1.
+- Tern 2.4.3, pinned in `my-backend/tools/go.mod`.
 - Prettier is installed through `frontend/package.json`.
 
 Task and golangci-lint are developer-machine tools. Their executables are normally installed in the Go binary directory:
@@ -54,6 +55,52 @@ More specific tasks are available through:
 task --list
 ```
 
+## Local PostgreSQL and migrations
+
+Docker Desktop must be running. The application itself still runs directly on
+the host; Compose starts only the PostgreSQL dependency.
+
+From the repository root, run:
+
+```powershell
+task db:setup
+```
+
+This command:
+
+1. starts the `db` Compose service;
+2. waits for its PostgreSQL health check;
+3. runs all pending migrations with the pinned Tern tool.
+
+The local database listens on `localhost:5454`. Keep `POSTGRES_PORT` and
+`DATABASE_URL` consistent when overriding the values from `.env.example`.
+
+Useful narrow commands are:
+
+```powershell
+task db:up
+task db:status
+task db:logs
+task db:migrate
+task db:migration:status
+task db:stop
+```
+
+`task db:stop` preserves the named PostgreSQL volume. There is intentionally
+no reset command yet because deleting the development database should be an
+explicit action.
+
+Create a migration skeleton with:
+
+```powershell
+task db:migration:new NAME=add_leaderboard_identity
+```
+
+Tern stores each migration in one numbered SQL file. SQL above
+`---- create above / drop below ----` migrates forward; SQL below it rolls
+that migration back. The backend does not migrate automatically at startup:
+schema changes remain an explicit development and deployment step.
+
 ## Tool responsibilities
 
 - `.editorconfig` supplies basic encoding, newline, and indentation conventions to compatible editors.
@@ -77,6 +124,8 @@ Do not run automatic dependency upgrades or broad `--fix` commands merely to mak
 ## Current scope
 
 - The Go test suite is included.
+- PostgreSQL startup and migrations are reproducible through Task and were
+  verified from an empty database.
 - A frontend unit-test framework has not been added yet.
 - CI has not been added yet.
 - Vulnerability remediation is a separate reviewed task; dependency audit results are not automatically modified.
