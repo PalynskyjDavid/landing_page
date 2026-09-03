@@ -4,42 +4,41 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
 type fakeRepository struct {
 	createCalls int
-	gotInput    CreateInput
-	result      *Result
+	gotParams   CreateParams
+	createdAt   time.Time
 	err         error
 }
 
-func (r *fakeRepository) Create(_ context.Context, input CreateInput) (*Result, error) {
+func (r *fakeRepository) Create(_ context.Context, params CreateParams) (*Result, error) {
 	r.createCalls++
-	r.gotInput = input
+	r.gotParams = params
 
 	if r.err != nil {
 		return nil, r.err
 	}
 
-	r.result = &Result{
+	return &Result{
 		ID:          1,
-		TotalRounds: input.TotalRounds,
-		Times:       append([]int(nil), input.Times...),
-		Missclicks:  input.Missclicks,
-		AverageMs:   input.AverageMs,
-		SessionID:   input.SessionID,
-	}
-
-	return r.result, nil
+		TotalRounds: params.TotalRounds,
+		Times:       append([]int(nil), params.Times...),
+		Missclicks:  params.Missclicks,
+		AverageMs:   params.AverageMs,
+		SessionID:   params.SessionID,
+		DisplayName: params.DisplayName,
+		CreatedAt:   r.createdAt,
+	}, nil
 }
 
 // Each call creates fresh input so tests can change it independently.
 func validCreateInput() CreateInput {
 	return CreateInput{
-		TotalRounds: 3,
-		Times:       []int{220, 210, 230},
-		Missclicks:  0,
-		AverageMs:   220,
+		Times:      []int{241, 228, 255, 249, 235},
+		Missclicks: 0,
 	}
 }
 
@@ -65,17 +64,17 @@ func TestServiceCreateReturnsRepositoryError(t *testing.T) {
 	}
 }
 
-func TestServiceCreateNormalizesSessionID(t *testing.T) {
+func TestServiceCreateNormalizesOptionalStringsAndDerivesValues(t *testing.T) {
 	repo := &fakeRepository{}
 	service := NewService(repo)
 	sessionID := "  session-1  "
+	displayName := "  David  "
 
 	result, err := service.Create(context.Background(), CreateInput{
-		TotalRounds: 3,
-		Times:       []int{220, 210, 230},
+		Times:       []int{241, 228, 255, 249, 235},
 		Missclicks:  1,
-		AverageMs:   220,
 		SessionID:   &sessionID,
+		DisplayName: &displayName,
 	})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -85,11 +84,51 @@ func TestServiceCreateNormalizesSessionID(t *testing.T) {
 		t.Fatal("expected result, got nil")
 	}
 
-	if repo.gotInput.SessionID == nil {
+	if repo.gotParams.SessionID == nil {
 		t.Fatal("expected normalized session id to be passed to repository")
 	}
 
-	if *repo.gotInput.SessionID != "session-1" {
-		t.Fatalf("expected trimmed session id, got %q", *repo.gotInput.SessionID)
+	if *repo.gotParams.SessionID != "session-1" {
+		t.Fatalf("expected trimmed session id, got %q", *repo.gotParams.SessionID)
+	}
+	if repo.gotParams.DisplayName == nil {
+		t.Fatal("expected normalized display name to be passed to repository")
+	}
+	if *repo.gotParams.DisplayName != "David" {
+		t.Fatalf("expected trimmed display name, got %q", *repo.gotParams.DisplayName)
+	}
+	if repo.gotParams.TotalRounds != requiredRoundCount {
+		t.Fatalf("expected %d derived rounds, got %d", requiredRoundCount, repo.gotParams.TotalRounds)
+	}
+	if repo.gotParams.AverageMs != 241 {
+		t.Fatalf("expected derived average 241, got %d", repo.gotParams.AverageMs)
+	}
+	if result.TotalRounds != requiredRoundCount || result.AverageMs != 241 {
+		t.Fatalf("expected result to contain server-derived values, got %#v", result)
+	}
+}
+
+func TestServiceCreateTreatsBlankDisplayNameAsMissing(t *testing.T) {
+	repo := &fakeRepository{}
+	service := NewService(repo)
+	displayName := "   "
+	input := validCreateInput()
+	input.DisplayName = &displayName
+
+	_, err := service.Create(context.Background(), input)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if repo.gotParams.DisplayName != nil {
+		t.Fatalf("expected nil display name, got %q", *repo.gotParams.DisplayName)
+	}
+}
+
+func TestCalculateAverageMsRoundsDown(t *testing.T) {
+	got := calculateAverageMs([]int{100, 101, 102, 103, 105})
+
+	if got != 102 {
+		t.Fatalf("expected average to round down to 102, got %d", got)
 	}
 }

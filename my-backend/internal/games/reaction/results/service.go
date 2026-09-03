@@ -3,9 +3,13 @@ package results
 import (
 	"context"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/palyndav/my-backend/internal/apperror"
 )
+
+const requiredRoundCount = 5
+const maxDisplayNameLength = 24
 
 type Service struct {
 	repository Repository
@@ -16,13 +20,23 @@ func NewService(repository Repository) *Service {
 }
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (*Result, error) {
+	input.SessionID = normalizeOptionalString(input.SessionID)
+	input.DisplayName = normalizeOptionalString(input.DisplayName)
+
 	if err := validateCreateInput(input); err != nil {
 		return nil, err
 	}
 
-	input.SessionID = normalizeOptionalString(input.SessionID)
+	params := CreateParams{
+		TotalRounds: requiredRoundCount,
+		Times:       append([]int(nil), input.Times...),
+		Missclicks:  input.Missclicks,
+		AverageMs:   calculateAverageMs(input.Times),
+		SessionID:   input.SessionID,
+		DisplayName: input.DisplayName,
+	}
 
-	result, err := s.repository.Create(ctx, input)
+	result, err := s.repository.Create(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -31,14 +45,8 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*Result, error
 }
 
 func validateCreateInput(input CreateInput) error {
-	if input.TotalRounds <= 0 {
-		return apperror.BadRequest("score_invalid_total_rounds", "totalRounds must be greater than zero.", nil)
-	}
-	if len(input.Times) == 0 {
-		return apperror.BadRequest("score_missing_times", "times must contain at least one score.", nil)
-	}
-	if len(input.Times) != input.TotalRounds {
-		return apperror.BadRequest("score_times_mismatch", "times length must match totalRounds.", nil)
+	if len(input.Times) != requiredRoundCount {
+		return apperror.BadRequest("score_invalid_round_count", "times must contain exactly five reaction times.", nil)
 	}
 	for _, timeMs := range input.Times {
 		if timeMs <= 0 {
@@ -48,11 +56,20 @@ func validateCreateInput(input CreateInput) error {
 	if input.Missclicks < 0 {
 		return apperror.BadRequest("score_invalid_missclicks", "missclicks cannot be negative.", nil)
 	}
-	if input.AverageMs <= 0 {
-		return apperror.BadRequest("score_invalid_average_ms", "averageMs must be greater than zero.", nil)
+	if input.DisplayName != nil && utf8.RuneCountInString(*input.DisplayName) > maxDisplayNameLength {
+		return apperror.BadRequest("score_display_name_too_long", "displayName cannot be longer than 24 characters.", nil)
 	}
 
 	return nil
+}
+
+func calculateAverageMs(times []int) int {
+	total := 0
+	for _, timeMs := range times {
+		total += timeMs
+	}
+
+	return total / len(times)
 }
 
 func normalizeOptionalString(value *string) *string {

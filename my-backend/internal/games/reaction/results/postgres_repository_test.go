@@ -93,13 +93,20 @@ func TestPostgresRepositoryCreateMapsQueryAndReturnsStoredResult(t *testing.T) {
 
 	repository := NewPostgresRepository(fakeDB)
 	sessionID := "session-123"
-	input := validCreateInput()
-	input.SessionID = &sessionID
+	displayName := "David"
+	params := CreateParams{
+		TotalRounds: requiredRoundCount,
+		Times:       []int{241, 228, 255, 249, 235},
+		Missclicks:  1,
+		AverageMs:   241,
+		SessionID:   &sessionID,
+		DisplayName: &displayName,
+	}
 
 	// Act
 	result, err := repository.Create(
 		context.Background(),
-		input,
+		params,
 	)
 
 	// Assert
@@ -113,11 +120,12 @@ func TestPostgresRepositoryCreateMapsQueryAndReturnsStoredResult(t *testing.T) {
 
 	wantResult := &Result{
 		ID:          42,
-		TotalRounds: input.TotalRounds,
-		Times:       input.Times,
-		Missclicks:  input.Missclicks,
-		AverageMs:   input.AverageMs,
-		SessionID:   input.SessionID,
+		TotalRounds: params.TotalRounds,
+		Times:       params.Times,
+		Missclicks:  params.Missclicks,
+		AverageMs:   params.AverageMs,
+		SessionID:   params.SessionID,
+		DisplayName: params.DisplayName,
 		CreatedAt:   createdAt,
 	}
 	if !reflect.DeepEqual(result, wantResult) {
@@ -137,11 +145,12 @@ func TestPostgresRepositoryCreateMapsQueryAndReturnsStoredResult(t *testing.T) {
 	}
 
 	wantArgs := pgx.NamedArgs{
-		"total_rounds": input.TotalRounds,
-		"times":        `[220,210,230]`,
-		"missclicks":   input.Missclicks,
-		"average_ms":   input.AverageMs,
-		"session_id":   input.SessionID,
+		"total_rounds": params.TotalRounds,
+		"times":        `[241,228,255,249,235]`,
+		"missclicks":   params.Missclicks,
+		"average_ms":   params.AverageMs,
+		"session_id":   params.SessionID,
+		"display_name": params.DisplayName,
 	}
 	if !reflect.DeepEqual(namedArgs, wantArgs) {
 		t.Fatalf("unexpected query arguments:\nwant: %#v\ngot:  %#v", wantArgs, namedArgs)
@@ -155,7 +164,11 @@ func TestPostgresRepositoryCreateWrapsDatabaseError(t *testing.T) {
 	}
 	repository := NewPostgresRepository(fakeDB)
 
-	result, err := repository.Create(context.Background(), validCreateInput())
+	result, err := repository.Create(context.Background(), CreateParams{
+		TotalRounds: requiredRoundCount,
+		Times:       []int{241, 228, 255, 249, 235},
+		AverageMs:   241,
+	})
 
 	if result != nil {
 		t.Fatalf("expected nil result, got %#v", result)

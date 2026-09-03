@@ -9,6 +9,7 @@ type Result struct {
 	Missclicks  int       `json:"missclicks"`
 	AverageMs   int       `json:"averageMs"`
 	SessionID   *string   `json:"sessionId,omitempty"`
+	DisplayName *string   `json:"displayName,omitempty"`
 	CreatedAt   time.Time `json:"createdAt"`
 }
 

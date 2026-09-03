@@ -1,4 +1,27 @@
-import { useGame } from "../providers/ReactionProvider";
+import { useState } from "react";
+import { useGame } from "../providers/reactionGameContext.js";
+
+const DISPLAY_NAME_STORAGE_KEY = "reactionGame.displayName";
+
+function loadDisplayName() {
+    try {
+        return window.localStorage.getItem(DISPLAY_NAME_STORAGE_KEY) ?? "";
+    } catch {
+        return "";
+    }
+}
+
+function rememberDisplayName(displayName) {
+    try {
+        if (displayName) {
+            window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, displayName);
+        } else {
+            window.localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY);
+        }
+    } catch {
+        // Saving the score still works when browser storage is unavailable.
+    }
+}
 
 function Card({ children, className = "", style = {} }) {
     const baseStyle = {
@@ -28,22 +51,66 @@ function Card({ children, className = "", style = {} }) {
 export default function ReactionGame() {
     const {
         game,
-        setTotalRounds,
         evaluateRound,
         resetGame,
+        saveScore,
+        isSavingScore,
+        isScoreSaved,
+        scoreSaveError,
     } = useGame();
+    const [displayName, setDisplayName] = useState(loadDisplayName);
 
     const bgColor = game.phase === "go" ? "#00ff0472" : game.phase === "wait" ? "#ff000032" : "#ffffff00";
     const pulseStyle = game.phase === "go" ? {
         cursor: 'pointer'
     } : {};
 
+    const submitScore = (event) => {
+        event.preventDefault();
+
+        const normalizedDisplayName = displayName.trim();
+        rememberDisplayName(normalizedDisplayName);
+        setDisplayName(normalizedDisplayName);
+        saveScore(normalizedDisplayName);
+    };
 
     if (game.phase === "summary") {
+        const averageMs = Math.floor(game.times.reduce((total, timeMs) => total + timeMs, 0) / game.times.length);
+
         return (
-            <div className="summary-screen">
-                stats
-            </div>
+            <Card>
+                <div className="summary-screen p-6 w-full">
+                    <h2>Finished!</h2>
+                    <p>Average: {averageMs} ms</p>
+                    <p>Misclicks: {game.misslicks}</p>
+
+                    <form onSubmit={submitScore} className="flex flex-col gap-3 mt-4">
+                        <label htmlFor="display-name">Display name (optional)</label>
+                        <input
+                            id="display-name"
+                            type="text"
+                            maxLength={24}
+                            value={displayName}
+                            disabled={isSavingScore || isScoreSaved}
+                            onChange={(event) => setDisplayName(event.target.value)}
+                            placeholder="Anonymous"
+                        />
+                        <button
+                            type="submit"
+                            className="ui-btn ui-surface-inverse"
+                            disabled={isSavingScore || isScoreSaved}
+                        >
+                            {isSavingScore ? "Saving..." : isScoreSaved ? "Score saved" : "Save score"}
+                        </button>
+                    </form>
+
+                    {scoreSaveError && <p role="alert">Could not save score: {scoreSaveError.message}</p>}
+
+                    <button className="ui-btn mt-4" onClick={resetGame}>
+                        Play again
+                    </button>
+                </div>
+            </Card>
         )
 
     }
@@ -67,7 +134,7 @@ export default function ReactionGame() {
                 {game.round != 0 ?
                     <>
                         <p>
-                            Round {game.round} / {game.TOTAL_ROUNDS}
+                            Round {game.round} / {game.totalRounds}
                         </p>
                         <button
                             className="ui-btn ui-surface-inverse ml-5"

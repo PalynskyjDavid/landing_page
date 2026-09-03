@@ -18,16 +18,18 @@ type Handler struct {
 }
 
 type createRequest struct {
-	TotalRounds int     `json:"totalRounds"`
 	Times       []int   `json:"times"`
 	Missclicks  int     `json:"missclicks"`
-	AverageMs   int     `json:"averageMs"`
 	SessionID   *string `json:"sessionId,omitempty"`
+	DisplayName *string `json:"displayName,omitempty"`
 }
 
 type createResponse struct {
-	ID        int64  `json:"id"`
-	CreatedAt string `json:"createdAt"`
+	ID          int64   `json:"id"`
+	TotalRounds int     `json:"totalRounds"`
+	AverageMs   int     `json:"averageMs"`
+	DisplayName *string `json:"displayName,omitempty"`
+	CreatedAt   string  `json:"createdAt"`
 }
 
 func NewHandler(logger *slog.Logger, service *Service) *Handler {
@@ -51,21 +53,17 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//nolint:staticcheck // Keep the transport-to-service mapping explicit so the types can evolve independently.
-	result, err := h.service.Create(r.Context(), CreateInput{
-		TotalRounds: request.TotalRounds,
-		Times:       request.Times,
-		Missclicks:  request.Missclicks,
-		AverageMs:   request.AverageMs,
-		SessionID:   request.SessionID,
-	})
+	result, err := h.service.Create(r.Context(), CreateInput(request))
 	if err != nil {
 		httpapi.WriteError(w, h.logger, err)
 		return
 	}
 
 	httpapi.WriteJSON(w, http.StatusCreated, createResponse{
-		ID:        result.ID,
-		CreatedAt: result.CreatedAt.Format(time.RFC3339),
+		ID:          result.ID,
+		TotalRounds: result.TotalRounds,
+		AverageMs:   result.AverageMs,
+		DisplayName: result.DisplayName,
+		CreatedAt:   result.CreatedAt.Format(time.RFC3339),
 	})
 }

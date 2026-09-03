@@ -1,7 +1,4 @@
-import { Link, NavLink, Outlet } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
-
-import clsx from "clsx";
+import { Outlet } from "react-router-dom";
 import ThemeSwitch from "../components/ui/ThemeToggleBtn"
 import TopLink from "../components/ui/TopLink"
 

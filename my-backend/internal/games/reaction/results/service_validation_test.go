@@ -2,6 +2,7 @@ package results
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/palyndav/my-backend/internal/apperror"
@@ -27,25 +28,25 @@ func TestServiceCreateRejectsInvalidInput(t *testing.T) {
 		wantCode string
 	}{
 		{
-			name: "zero total rounds",
-			change: func(input *CreateInput) {
-				input.TotalRounds = 0
-			},
-			wantCode: "score_invalid_total_rounds",
-		},
-		{
 			name: "missing times",
 			change: func(input *CreateInput) {
 				input.Times = nil
 			},
-			wantCode: "score_missing_times",
+			wantCode: "score_invalid_round_count",
 		},
 		{
-			name: "times do not match rounds",
+			name: "four reaction times",
 			change: func(input *CreateInput) {
-				input.Times = []int{220, 210}
+				input.Times = input.Times[:4]
 			},
-			wantCode: "score_times_mismatch",
+			wantCode: "score_invalid_round_count",
+		},
+		{
+			name: "six reaction times",
+			change: func(input *CreateInput) {
+				input.Times = append(input.Times, 260)
+			},
+			wantCode: "score_invalid_round_count",
 		},
 		{
 			name: "non-positive reaction time",
@@ -62,11 +63,12 @@ func TestServiceCreateRejectsInvalidInput(t *testing.T) {
 			wantCode: "score_invalid_missclicks",
 		},
 		{
-			name: "non-positive average",
+			name: "display name longer than 24 characters",
 			change: func(input *CreateInput) {
-				input.AverageMs = 0
+				displayName := strings.Repeat("a", maxDisplayNameLength+1)
+				input.DisplayName = &displayName
 			},
-			wantCode: "score_invalid_average_ms",
+			wantCode: "score_display_name_too_long",
 		},
 	}
 

@@ -1,7 +1,7 @@
 # Reaction Results API Contract
 
 - Status: Draft
-- Date: 2026-09-02
+- Date: 2026-09-03
 - Canonical implementation: `my-backend`
 
 ## Purpose
@@ -10,7 +10,7 @@ This document is the shared boundary between the React frontend and Go backend f
 
 This is a design contract, not yet an OpenAPI specification. Items marked **Open decision** must be agreed before the affected endpoint is stable.
 
-## Existing score submission
+## Score submission
 
 ### Request
 
@@ -21,24 +21,22 @@ Content-Type: application/json
 
 ```json
 {
-  "totalRounds": 3,
-  "times": [241, 228, 255],
+  "times": [241, 228, 255, 249, 235],
   "missclicks": 1,
-  "averageMs": 241,
-  "sessionId": "local-session-id"
+  "sessionId": "local-session-id",
+  "displayName": "David"
 }
 ```
 
-The current implementation applies these rules:
+The implementation applies these rules:
 
-- `totalRounds` must be greater than zero.
-- `times` must contain exactly `totalRounds` positive integer values in milliseconds.
+- `times` must contain exactly five positive integer values in milliseconds.
 - `missclicks` must be zero or greater.
-- `averageMs` must be greater than zero.
 - `sessionId` is optional; surrounding whitespace is removed and an empty value becomes `null`.
+- `displayName` is optional; it is trimmed, an empty value becomes `null`, and its maximum length is 24 characters.
 - Unknown JSON fields are rejected.
 
-`averageMs` is currently supplied by the client and only checked for being positive. This is transitional behavior, not a guarantee that the final contract trusts it.
+The client does not send `totalRounds` or `averageMs`. The service derives a round count of five and calculates the average from `times` using integer division, which rounds a positive fractional result down. For example, a sum of `1208` divided by `5` is stored as `241`.
 
 ### Success response
 
@@ -50,17 +48,22 @@ Content-Type: application/json
 ```json
 {
   "id": 42,
-  "createdAt": "2026-09-02T14:30:00Z"
+  "totalRounds": 5,
+  "averageMs": 241,
+  "displayName": "David",
+  "createdAt": "2026-09-03T14:30:00Z"
 }
 ```
+
+`totalRounds` and `averageMs` in this response are the values calculated and stored by the backend.
 
 ### Error response
 
 ```json
 {
   "error": {
-    "code": "score_times_mismatch",
-    "message": "times length must match totalRounds."
+    "code": "score_invalid_round_count",
+    "message": "times must contain exactly five reaction times."
   }
 }
 ```
@@ -68,27 +71,26 @@ Content-Type: application/json
 | HTTP status | Code | Condition |
 | --- | --- | --- |
 | `400` | `invalid_json` | Body cannot be decoded or contains an unknown field. |
-| `400` | `score_invalid_total_rounds` | `totalRounds` is not positive. |
-| `400` | `score_missing_times` | `times` is empty. |
-| `400` | `score_times_mismatch` | Number of times differs from `totalRounds`. |
+| `400` | `score_invalid_round_count` | `times` does not contain exactly five values. |
 | `400` | `score_invalid_time` | A reaction time is not positive. |
 | `400` | `score_invalid_missclicks` | `missclicks` is negative. |
-| `400` | `score_invalid_average_ms` | `averageMs` is not positive. |
+| `400` | `score_display_name_too_long` | Trimmed `displayName` is longer than 24 characters. |
 
 Unexpected failures use status `500`, code `internal_error`, and do not expose internal details.
 
-## Proposed stable submission contract
+## Deferred submission features
 
-Before expanding the handler, agree on these changes:
+These features deliberately remain outside the current score-correctness slice:
 
-1. The server calculates `averageMs` from `times`; the client does not send it.
-2. The client sends an anonymous player identifier and optional display name.
-3. A later reliability release adds a client-generated idempotency key with a database uniqueness constraint.
-4. Upper bounds are defined for round count, reaction time, display-name length, and request size.
+1. The client sends an anonymous player identifier so multiple scores can belong to the same browser/player.
+2. A later reliability release adds a client-generated idempotency key with a database uniqueness constraint.
+3. Upper bounds are defined for reaction time, missclicks, and request size.
+
+The nullable `display_name` column is now populated when a player chooses a name. The existing nullable `player_id` and `submission_id` columns remain unused until those contracts are agreed.
+
+The frontend remembers a submitted non-empty display name in browser `localStorage` and pre-fills it for the next game. Clearing the field and saving anonymously removes that stored value. Browser storage is only a convenience; the backend still validates every request.
 
 **Open decision:** whether anonymous identity belongs in the body or is supplied through a separate browser/session mechanism.
-
-**Open decision:** whether idempotency is included in the first leaderboard schema now, even though offline retry is a later feature.
 
 ## Proposed leaderboard read
 
@@ -109,9 +111,9 @@ A candidate response shape is:
       "displayName": "Anonymous Fox",
       "averageMs": 241,
       "bestMs": 228,
-      "totalRounds": 3,
+      "totalRounds": 5,
       "missclicks": 1,
-      "createdAt": "2026-09-02T14:30:00Z"
+      "createdAt": "2026-09-03T14:30:00Z"
     }
   ]
 }

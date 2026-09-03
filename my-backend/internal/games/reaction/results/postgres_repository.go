@@ -27,26 +27,28 @@ func NewPostgresRepository(db postgresQueryRower) *PostgresRepository {
 	return &PostgresRepository{db: db}
 }
 
-func (r *PostgresRepository) Create(ctx context.Context, input CreateInput) (*Result, error) {
-	timesJSON, err := json.Marshal(input.Times)
+func (r *PostgresRepository) Create(ctx context.Context, params CreateParams) (*Result, error) {
+	timesJSON, err := json.Marshal(params.Times)
 	if err != nil {
 		return nil, apperror.Internal("score_times_encode_failed", "Failed to save score.", fmt.Errorf("marshal times: %w", err))
 	}
 
 	result := &Result{
-		TotalRounds: input.TotalRounds,
-		Times:       append([]int(nil), input.Times...),
-		Missclicks:  input.Missclicks,
-		AverageMs:   input.AverageMs,
-		SessionID:   input.SessionID,
+		TotalRounds: params.TotalRounds,
+		Times:       append([]int(nil), params.Times...),
+		Missclicks:  params.Missclicks,
+		AverageMs:   params.AverageMs,
+		SessionID:   params.SessionID,
+		DisplayName: params.DisplayName,
 	}
 
 	err = r.db.QueryRow(ctx, postgresInsertResultSQL, pgx.NamedArgs{
-		"total_rounds": input.TotalRounds,
+		"total_rounds": params.TotalRounds,
 		"times":        string(timesJSON),
-		"missclicks":   input.Missclicks,
-		"average_ms":   input.AverageMs,
-		"session_id":   input.SessionID,
+		"missclicks":   params.Missclicks,
+		"average_ms":   params.AverageMs,
+		"session_id":   params.SessionID,
+		"display_name": params.DisplayName,
 	}).Scan(&result.ID, &result.CreatedAt)
 	if err != nil {
 		return nil, apperror.Internal("result_insert_failed", "Failed to save score.", err)

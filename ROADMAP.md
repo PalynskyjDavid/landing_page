@@ -139,6 +139,10 @@ Depends on Stages 1 and 2.
 
 The first draft contract is recorded in `docs/contracts/reaction-results-api.md`. It separates the currently implemented score submission from proposed leaderboard and identity changes; open decisions must be resolved before it is promoted to OpenAPI.
 
+The score-correctness slice now fixes a completed game at five rounds. The backend validates the five raw reaction times and derives both `totalRounds` and the rounded-down `averageMs`; anonymous identity and idempotent retries remain deferred.
+
+The result screen now accepts an optional display name, remembers it locally in the browser, and stores the backend-trimmed value with the score. Stable anonymous player identity is still a separate future decision.
+
 ## Stage 4 — Quality foundations
 
 Frontend and backend work can proceed in parallel after Stage 2; contract-dependent tests also require Stage 3.

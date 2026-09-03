@@ -1,13 +1,13 @@
-import { createContext, useState, useRef, useMemo, useContext, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSaveScoreMutation } from "../hooks/useSaveScoreMutation.js";
-
-const GameContext = createContext(null);
+import { GameContext } from "./reactionGameContext.js";
 
 const MIN_DELAY = 500;
 const MAX_DELAY = 5000;
+const REQUIRED_ROUND_COUNT = 5;
 
 const initialState = {
-    TOTAL_ROUNDS: 5,
+    totalRounds: REQUIRED_ROUND_COUNT,
     phase: "start",
     round: 0,
     times: [],
@@ -19,7 +19,6 @@ const initialState = {
 export function GameProvider({ children }) {
     const [game, setGame] = useState(initialState);
     const saveScoreMutation = useSaveScoreMutation();
-    const postedSummaryRef = useRef(false);
 
     const startTimeRef = useRef(null);
     const timerRef = useRef(null);
@@ -30,10 +29,6 @@ export function GameProvider({ children }) {
             if (timerRef.current) clearTimeout(timerRef.current);
         };
     }, []);
-
-    const setTotalRounds = (count) => {
-        setGame(prev => ({ ...prev, TOTAL_ROUNDS: count }));
-    }
 
     const update = (patch) => setGame(prev => ({ ...prev, ...patch }));
 
@@ -66,7 +61,7 @@ export function GameProvider({ children }) {
                 const score = Math.round(performance.now() - startTimeRef.current);
                 const newTimes = [...times, score];
 
-                if (newTimes.length >= game.TOTAL_ROUNDS) {
+                if (newTimes.length >= prev.totalRounds) {
                     return { ...prev, phase: "summary", times: newTimes, message: "Finished!" };
                 } else {
                     return { ...prev, phase: "result", times: newTimes, message: `Time: ${score}ms. Click for next round.` };
@@ -88,38 +83,33 @@ export function GameProvider({ children }) {
             timerRef.current = null;
         }
 
+        saveScoreMutation.reset();
         setGame(initialState);
     };
 
-    useEffect(() => {
-        if (game.phase !== "summary") {
-            postedSummaryRef.current = false;
-            return;
-        }
-
-        if (postedSummaryRef.current) return;
-        postedSummaryRef.current = true;
-
-        saveScoreMutation.mutate({
-            totalRounds: game.TOTAL_ROUNDS,
+    const saveScore = (displayName) => {
+        const normalizedDisplayName = displayName.trim();
+        const payload = {
             times: game.times,
             missclicks: game.misslicks,
-            averageMs: Math.round(game.times.reduce((a, b) => a + b, 0) / game.times.length),
-        });
-    }, [game, saveScoreMutation]);
+        };
 
-    const value = useMemo(() => ({
+        if (normalizedDisplayName) {
+            payload.displayName = normalizedDisplayName;
+        }
+
+        saveScoreMutation.mutate(payload);
+    };
+
+    const value = {
         game,
-        setTotalRounds,
         evaluateRound,
         resetGame,
-    }), [game]);
+        saveScore,
+        isSavingScore: saveScoreMutation.isPending,
+        isScoreSaved: saveScoreMutation.isSuccess,
+        scoreSaveError: saveScoreMutation.error,
+    };
 
     return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
-}
-
-export function useGame() {
-    const ctx = useContext(GameContext);
-    if (!ctx) throw new Error("useGame must be used inside <GameProvider>!");
-    return ctx;
 }
