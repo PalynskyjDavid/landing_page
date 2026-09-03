@@ -143,6 +143,21 @@ The score-correctness slice now fixes a completed game at five rounds. The backe
 
 The result screen now accepts an optional display name, remembers it locally in the browser, and stores the backend-trimmed value with the score. Stable anonymous player identity is still a separate future decision.
 
+The first leaderboard read is defined and implemented with a default limit of 10, a maximum of 50, and safe two-level sorting by average time, best time, or misclicks in either best-first or worst-first direction. Creation time and score ID provide deterministic final tie-breaking. Pagination remains deferred.
+
+The leaderboard UI now offers Top 5, Top 10, and Top 20 views. Each selection is sent to the backend as the existing `limit` query parameter; the browser does not truncate a larger result locally.
+
+### Prepared next slice: reliable score delivery
+
+- [ ] Define the `submissionId` contract and the response for a repeated ID. **Pair**
+- [ ] Generate one UUID when a finished game becomes a score submission and reuse it for every attempt. **David**
+- [ ] Make score creation idempotent in the Go service and PostgreSQL repository. **Pair**
+- [ ] Add a small in-memory retry policy for retryable network, timeout, rate-limit, and server failures. **David**
+- [ ] Store still-pending score submissions in IndexedDB as a domain-specific outbox. **Pair**
+- [ ] Drain the outbox on application startup, the browser `online` event, and a manual retry action. **David**
+- [ ] Show queued, sending, saved, and permanently failed states without blocking a new game. **David**
+- [ ] Verify that an outage followed by recovery saves exactly one score. **Pair**
+
 ## Stage 4 — Quality foundations
 
 Frontend and backend work can proceed in parallel after Stage 2; contract-dependent tests also require Stage 3.
@@ -178,7 +193,7 @@ Depends on the contracts and safety nets from Stages 3 and 4.
 - [ ] Redesign the landing-page content and navigation. **David**
 - [ ] Add project showcase content to the home page. **David**
 - [ ] Finish the reaction-game setup and result summary. **David**
-- [ ] Add score submission and leaderboard presentation. **David**
+- [x] Add score submission and leaderboard presentation. **Pair**
 - [ ] Redesign analytics around useful questions rather than raw JSON. **Pair**
 - [ ] Add responsive, keyboard, loading, offline, and failure behavior. **David**
 - [ ] Add tests with each redesigned feature. **David**

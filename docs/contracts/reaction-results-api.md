@@ -92,15 +92,24 @@ The frontend remembers a submitted non-empty display name in browser `localStora
 
 **Open decision:** whether anonymous identity belongs in the body or is supplied through a separate browser/session mechanism.
 
-## Proposed leaderboard read
-
-The next endpoint will conceptually be:
+## Leaderboard read
 
 ```http
-GET /scores/leaderboard?limit=10
+GET /scores/leaderboard?limit=10&sort=averageMs:worst,missclicks:best
 ```
 
-A candidate response shape is:
+The optional `limit` defaults to `10` and must be between `1` and `50`.
+
+The optional comma-separated `sort` contains one or two different `field:direction` pairs. Fields are selected from `averageMs`, `bestMs`, and `missclicks`; directions are `best` or `worst`. The first pair is the primary order and the second breaks ties. `best` means the lowest value comes first and `worst` means the highest value comes first. A field without an explicit direction defaults to `best`.
+
+If `sort` is omitted, it defaults to `averageMs:best,missclicks:best`. If only one field is supplied, the service chooses a different sensible secondary field using the `best` direction. Remaining ties are ordered by:
+
+1. Earliest `createdAt`.
+2. Lowest `scoreId` as the final stable tie-breaker.
+
+`bestMs` is the lowest of the five stored reaction times. A missing `displayName` is omitted from JSON and displayed as `Anonymous` by the frontend.
+
+The response shape is:
 
 ```json
 {
@@ -119,9 +128,22 @@ A candidate response shape is:
 }
 ```
 
-**Open decision:** rank by lowest average reaction time, lowest individual time, or a score that also penalizes misclicks. The query and index depend on this choice.
+Invalid text or values outside the supported limit return:
 
-**Open decision:** define the default and maximum `limit`, tie-breaking order, and whether pagination is needed in the first release.
+```json
+{
+  "error": {
+    "code": "score_invalid_limit",
+    "message": "limit must be between 1 and 50."
+  }
+}
+```
+
+Unknown fields or directions, duplicate fields, or more than two pairs return code `score_invalid_sort`. The backend maps the allowed names to fixed SQL expressions; query values are never inserted as raw SQL column names.
+
+The frontend presents two sorting rows containing a Best/Worst selector and a Column selector. Selected table headers display their priority and direction: `↑` means best/lowest first and `↓` means worst/highest first.
+
+Pagination remains deferred until the amount of data makes it useful.
 
 ## Contract-first implementation sequence
 

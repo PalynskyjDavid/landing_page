@@ -8,3 +8,12 @@ export function postScore(payload, options = {}) {
     ...options,
   });
 }
+
+export function getLeaderboard(params = {}, options = {}) {
+  return apiClient.request({
+    method: "GET",
+    path: "/scores/leaderboard",
+    params,
+    ...options,
+  });
+}

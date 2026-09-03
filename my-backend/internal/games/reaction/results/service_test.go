@@ -8,10 +8,25 @@ import (
 )
 
 type fakeRepository struct {
-	createCalls int
-	gotParams   CreateParams
-	createdAt   time.Time
-	err         error
+	createCalls          int
+	gotParams            CreateParams
+	createdAt            time.Time
+	err                  error
+	leaderboardCalls     int
+	gotLeaderboardParams LeaderboardParams
+	entries              []LeaderboardEntry
+	leaderboardErr       error
+}
+
+func (r *fakeRepository) ListLeaderboard(_ context.Context, params LeaderboardParams) ([]LeaderboardEntry, error) {
+	r.leaderboardCalls++
+	r.gotLeaderboardParams = params
+
+	if r.leaderboardErr != nil {
+		return nil, r.leaderboardErr
+	}
+
+	return append([]LeaderboardEntry(nil), r.entries...), nil
 }
 
 func (r *fakeRepository) Create(_ context.Context, params CreateParams) (*Result, error) {

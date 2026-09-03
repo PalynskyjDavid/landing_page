@@ -56,3 +56,27 @@ func (r *PostgresRepository) Create(ctx context.Context, params CreateParams) (*
 
 	return result, nil
 }
+
+func (r *PostgresRepository) ListLeaderboard(ctx context.Context, params LeaderboardParams) ([]LeaderboardEntry, error) {
+	var encodedEntries []byte
+	if err := r.db.QueryRow(ctx, postgresListLeaderboardSQL, pgx.NamedArgs{
+		"limit":               params.Limit,
+		"primary_sort":        params.PrimarySort.Field,
+		"primary_direction":   params.PrimarySort.Direction,
+		"secondary_sort":      params.SecondarySort.Field,
+		"secondary_direction": params.SecondarySort.Direction,
+	}).Scan(&encodedEntries); err != nil {
+		return nil, apperror.Internal("leaderboard_query_failed", "Failed to load leaderboard.", err)
+	}
+
+	entries := make([]LeaderboardEntry, 0)
+	if err := json.Unmarshal(encodedEntries, &entries); err != nil {
+		return nil, apperror.Internal("leaderboard_decode_failed", "Failed to load leaderboard.", fmt.Errorf("decode leaderboard: %w", err))
+	}
+
+	for index := range entries {
+		entries[index].Rank = index + 1
+	}
+
+	return entries, nil
+}

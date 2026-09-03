@@ -90,14 +90,15 @@ function normalizeError({ error, response, payload, url, method }) {
 
   const status = response?.status ?? null;
   const details = payload && typeof payload === "object" ? payload : payload ? { message: payload } : null;
+  const errorDetails = details?.error && typeof details.error === "object" ? details.error : details;
   const message =
-    details?.message ||
+    errorDetails?.message ||
     error?.message ||
     (status ? `Request failed with status ${status}.` : "Network request failed.");
 
   return new ApiClientError(message, {
     status,
-    code: details?.code ?? null,
+    code: errorDetails?.code ?? null,
     details,
     url,
     method,

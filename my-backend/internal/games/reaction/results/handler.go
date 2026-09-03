@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/palyndav/my-backend/internal/apperror"
@@ -32,6 +34,10 @@ type createResponse struct {
 	CreatedAt   string  `json:"createdAt"`
 }
 
+type leaderboardResponse struct {
+	Entries []LeaderboardEntry `json:"entries"`
+}
+
 func NewHandler(logger *slog.Logger, service *Service) *Handler {
 	return &Handler{
 		logger:  logger,
@@ -41,6 +47,7 @@ func NewHandler(logger *slog.Logger, service *Service) *Handler {
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Post("/scores", h.handleCreate)
+	r.Get("/scores/leaderboard", h.handleLeaderboard)
 }
 
 func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
@@ -66,4 +73,38 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		DisplayName: result.DisplayName,
 		CreatedAt:   result.CreatedAt.Format(time.RFC3339),
 	})
+}
+
+func (h *Handler) handleLeaderboard(w http.ResponseWriter, r *http.Request) {
+	options := LeaderboardOptions{}
+	if rawLimit := r.URL.Query().Get("limit"); rawLimit != "" {
+		parsedLimit, err := strconv.Atoi(rawLimit)
+		if err != nil {
+			httpapi.WriteError(w, h.logger, apperror.BadRequest("score_invalid_limit", "limit must be between 1 and 50.", err))
+			return
+		}
+		options.Limit = parsedLimit
+	}
+
+	if rawSort := r.URL.Query().Get("sort"); rawSort != "" {
+		for _, rawSelection := range strings.Split(rawSort, ",") {
+			parts := strings.SplitN(strings.TrimSpace(rawSelection), ":", 2)
+			selection := LeaderboardSort{
+				Field:     LeaderboardSortField(parts[0]),
+				Direction: leaderboardSortBest,
+			}
+			if len(parts) == 2 {
+				selection.Direction = LeaderboardSortDirection(parts[1])
+			}
+			options.Sort = append(options.Sort, selection)
+		}
+	}
+
+	entries, err := h.service.Leaderboard(r.Context(), options)
+	if err != nil {
+		httpapi.WriteError(w, h.logger, err)
+		return
+	}
+
+	httpapi.WriteJSON(w, http.StatusOK, leaderboardResponse{Entries: entries})
 }

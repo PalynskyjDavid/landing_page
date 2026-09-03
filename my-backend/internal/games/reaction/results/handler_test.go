@@ -66,3 +66,75 @@ func TestHandleCreateRejectsClientCalculatedAverage(t *testing.T) {
 		t.Fatalf("expected repository not to be called, got %d calls", repo.createCalls)
 	}
 }
+
+func TestHandleLeaderboardReturnsEntries(t *testing.T) {
+	displayName := "David"
+	createdAt := time.Date(2026, time.September, 3, 12, 0, 0, 0, time.UTC)
+	repo := &fakeRepository{entries: []LeaderboardEntry{{
+		Rank:        1,
+		ScoreID:     42,
+		DisplayName: &displayName,
+		AverageMs:   241,
+		BestMs:      228,
+		TotalRounds: requiredRoundCount,
+		Missclicks:  1,
+		CreatedAt:   createdAt,
+	}}}
+	handler := NewHandler(nil, NewService(repo))
+	request := httptest.NewRequest(http.MethodGet, "/scores/leaderboard?limit=5&sort=bestMs:worst,missclicks:best", nil)
+	response := httptest.NewRecorder()
+
+	handler.handleLeaderboard(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, response.Code, response.Body.String())
+	}
+	if repo.gotLeaderboardParams.Limit != 5 {
+		t.Fatalf("expected limit 5, got %d", repo.gotLeaderboardParams.Limit)
+	}
+	wantPrimary := LeaderboardSort{Field: leaderboardSortBestMs, Direction: leaderboardSortWorst}
+	wantSecondary := LeaderboardSort{Field: leaderboardSortMissclicks, Direction: leaderboardSortBest}
+	if repo.gotLeaderboardParams.PrimarySort != wantPrimary || repo.gotLeaderboardParams.SecondarySort != wantSecondary {
+		t.Fatalf("unexpected sort parameters: %#v", repo.gotLeaderboardParams)
+	}
+
+	var body leaderboardResponse
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.Entries) != 1 || body.Entries[0].ScoreID != 42 {
+		t.Fatalf("unexpected response entries: %#v", body.Entries)
+	}
+}
+
+func TestHandleLeaderboardRejectsInvalidSort(t *testing.T) {
+	repo := &fakeRepository{}
+	handler := NewHandler(nil, NewService(repo))
+	request := httptest.NewRequest(http.MethodGet, "/scores/leaderboard?sort=bestMs:best,bestMs:worst", nil)
+	response := httptest.NewRecorder()
+
+	handler.handleLeaderboard(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	if repo.leaderboardCalls != 0 {
+		t.Fatalf("expected repository not to be called, got %d calls", repo.leaderboardCalls)
+	}
+}
+
+func TestHandleLeaderboardRejectsNonNumericLimit(t *testing.T) {
+	repo := &fakeRepository{}
+	handler := NewHandler(nil, NewService(repo))
+	request := httptest.NewRequest(http.MethodGet, "/scores/leaderboard?limit=many", nil)
+	response := httptest.NewRecorder()
+
+	handler.handleLeaderboard(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	if repo.leaderboardCalls != 0 {
+		t.Fatalf("expected repository not to be called, got %d calls", repo.leaderboardCalls)
+	}
+}
