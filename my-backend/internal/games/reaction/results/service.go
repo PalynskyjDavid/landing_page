@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/palyndav/my-backend/internal/apperror"
+	"github.com/palyndav/my-backend/internal/platform/identifier"
 )
 
 const requiredRoundCount = 5
@@ -21,29 +22,76 @@ func NewService(repository Repository) *Service {
 	return &Service{repository: repository}
 }
 
-func (s *Service) Create(ctx context.Context, input CreateInput) (*Result, error) {
-	input.SessionID = normalizeOptionalString(input.SessionID)
+func (s *Service) Create(ctx context.Context, input CreateInput) (*Result, bool, error) {
+	var valid bool
+	input.SubmissionID, valid = identifier.NormalizeUUID(input.SubmissionID)
+	if !valid {
+		return nil, false, apperror.BadRequest("score_invalid_submission_id", "submissionId must be a valid UUID.", nil)
+	}
+
+	input.PlayerID, valid = identifier.NormalizeUUID(input.PlayerID)
+	if !valid {
+		return nil, false, apperror.BadRequest("score_invalid_player_id", "playerId must be a valid UUID.", nil)
+	}
+
 	input.DisplayName = normalizeOptionalString(input.DisplayName)
 
 	if err := validateCreateInput(input); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	params := CreateParams{
-		TotalRounds: requiredRoundCount,
-		Times:       append([]int(nil), input.Times...),
-		Missclicks:  input.Missclicks,
-		AverageMs:   calculateAverageMs(input.Times),
-		SessionID:   input.SessionID,
-		DisplayName: input.DisplayName,
+		SubmissionID: input.SubmissionID,
+		PlayerID:     input.PlayerID,
+		TotalRounds:  requiredRoundCount,
+		Times:        append([]int(nil), input.Times...),
+		Missclicks:   input.Missclicks,
+		AverageMs:    calculateAverageMs(input.Times),
+		DisplayName:  input.DisplayName,
 	}
 
-	result, err := s.repository.Create(ctx, params)
+	result, created, err := s.repository.Create(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, false, err
+	}
+	if !created && !sameSubmission(result, params) {
+		return nil, false, apperror.Conflict(
+			"score_submission_conflict",
+			"submissionId was already used for different score data.",
+			nil,
+		)
 	}
 
-	return result, nil
+	return result, created, nil
+}
+
+func sameSubmission(result *Result, params CreateParams) bool {
+	if result == nil ||
+		result.SubmissionID != params.SubmissionID ||
+		result.PlayerID != params.PlayerID ||
+		result.TotalRounds != params.TotalRounds ||
+		result.Missclicks != params.Missclicks ||
+		result.AverageMs != params.AverageMs ||
+		!sameOptionalString(result.DisplayName, params.DisplayName) ||
+		len(result.Times) != len(params.Times) {
+		return false
+	}
+
+	for index := range result.Times {
+		if result.Times[index] != params.Times[index] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func sameOptionalString(left, right *string) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+
+	return *left == *right
 }
 
 func (s *Service) Leaderboard(ctx context.Context, options LeaderboardOptions) ([]LeaderboardEntry, error) {

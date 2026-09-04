@@ -20,18 +20,19 @@ type Handler struct {
 }
 
 type createRequest struct {
-	Times       []int   `json:"times"`
-	Missclicks  int     `json:"missclicks"`
-	SessionID   *string `json:"sessionId,omitempty"`
-	DisplayName *string `json:"displayName,omitempty"`
+	SubmissionID string  `json:"submissionId"`
+	Times        []int   `json:"times"`
+	Missclicks   int     `json:"missclicks"`
+	DisplayName  *string `json:"displayName,omitempty"`
 }
 
 type createResponse struct {
-	ID          int64   `json:"id"`
-	TotalRounds int     `json:"totalRounds"`
-	AverageMs   int     `json:"averageMs"`
-	DisplayName *string `json:"displayName,omitempty"`
-	CreatedAt   string  `json:"createdAt"`
+	ID           int64   `json:"id"`
+	SubmissionID string  `json:"submissionId"`
+	TotalRounds  int     `json:"totalRounds"`
+	AverageMs    int     `json:"averageMs"`
+	DisplayName  *string `json:"displayName,omitempty"`
+	CreatedAt    string  `json:"createdAt"`
 }
 
 type leaderboardResponse struct {
@@ -60,18 +61,36 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.service.Create(r.Context(), CreateInput(request))
+	playerID, ok := httpapi.PlayerIDFromContext(r.Context())
+	if !ok {
+		httpapi.WriteError(w, h.logger, apperror.Internal("player_identity_missing", "Failed to identify player.", nil))
+		return
+	}
+
+	result, created, err := h.service.Create(r.Context(), CreateInput{
+		SubmissionID: request.SubmissionID,
+		PlayerID:     playerID,
+		Times:        request.Times,
+		Missclicks:   request.Missclicks,
+		DisplayName:  request.DisplayName,
+	})
 	if err != nil {
 		httpapi.WriteError(w, h.logger, err)
 		return
 	}
 
-	httpapi.WriteJSON(w, http.StatusCreated, createResponse{
-		ID:          result.ID,
-		TotalRounds: result.TotalRounds,
-		AverageMs:   result.AverageMs,
-		DisplayName: result.DisplayName,
-		CreatedAt:   result.CreatedAt.Format(time.RFC3339),
+	statusCode := http.StatusOK
+	if created {
+		statusCode = http.StatusCreated
+	}
+
+	httpapi.WriteJSON(w, statusCode, createResponse{
+		ID:           result.ID,
+		SubmissionID: result.SubmissionID,
+		TotalRounds:  result.TotalRounds,
+		AverageMs:    result.AverageMs,
+		DisplayName:  result.DisplayName,
+		CreatedAt:    result.CreatedAt.Format(time.RFC3339),
 	})
 }
 

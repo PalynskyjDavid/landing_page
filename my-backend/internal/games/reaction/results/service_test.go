@@ -7,11 +7,15 @@ import (
 	"time"
 )
 
+const testSubmissionID = "550e8400-e29b-41d4-a716-446655440000"
+const testPlayerID = "1b4e28ba-2fa1-11d2-883f-0016d3cca427"
+
 type fakeRepository struct {
 	createCalls          int
 	gotParams            CreateParams
 	createdAt            time.Time
 	err                  error
+	existingResult       *Result
 	leaderboardCalls     int
 	gotLeaderboardParams LeaderboardParams
 	entries              []LeaderboardEntry
@@ -29,31 +33,37 @@ func (r *fakeRepository) ListLeaderboard(_ context.Context, params LeaderboardPa
 	return append([]LeaderboardEntry(nil), r.entries...), nil
 }
 
-func (r *fakeRepository) Create(_ context.Context, params CreateParams) (*Result, error) {
+func (r *fakeRepository) Create(_ context.Context, params CreateParams) (*Result, bool, error) {
 	r.createCalls++
 	r.gotParams = params
 
 	if r.err != nil {
-		return nil, r.err
+		return nil, false, r.err
+	}
+	if r.existingResult != nil {
+		return r.existingResult, false, nil
 	}
 
 	return &Result{
-		ID:          1,
-		TotalRounds: params.TotalRounds,
-		Times:       append([]int(nil), params.Times...),
-		Missclicks:  params.Missclicks,
-		AverageMs:   params.AverageMs,
-		SessionID:   params.SessionID,
-		DisplayName: params.DisplayName,
-		CreatedAt:   r.createdAt,
-	}, nil
+		ID:           1,
+		SubmissionID: params.SubmissionID,
+		PlayerID:     params.PlayerID,
+		TotalRounds:  params.TotalRounds,
+		Times:        append([]int(nil), params.Times...),
+		Missclicks:   params.Missclicks,
+		AverageMs:    params.AverageMs,
+		DisplayName:  params.DisplayName,
+		CreatedAt:    r.createdAt,
+	}, true, nil
 }
 
 // Each call creates fresh input so tests can change it independently.
 func validCreateInput() CreateInput {
 	return CreateInput{
-		Times:      []int{241, 228, 255, 249, 235},
-		Missclicks: 0,
+		SubmissionID: testSubmissionID,
+		PlayerID:     testPlayerID,
+		Times:        []int{241, 228, 255, 249, 235},
+		Missclicks:   0,
 	}
 }
 
@@ -65,7 +75,7 @@ func TestServiceCreateReturnsRepositoryError(t *testing.T) {
 	input := validCreateInput()
 
 	// Act: call the real service, not the fake repository directly.
-	result, err := service.Create(context.Background(), input)
+	result, _, err := service.Create(context.Background(), input)
 
 	// Assert: the service returns no result and preserves the repository error.
 	if result != nil {
@@ -79,17 +89,17 @@ func TestServiceCreateReturnsRepositoryError(t *testing.T) {
 	}
 }
 
-func TestServiceCreateNormalizesOptionalStringsAndDerivesValues(t *testing.T) {
+func TestServiceCreateNormalizesIdentifiersAndDisplayNameAndDerivesValues(t *testing.T) {
 	repo := &fakeRepository{}
 	service := NewService(repo)
-	sessionID := "  session-1  "
 	displayName := "  David  "
 
-	result, err := service.Create(context.Background(), CreateInput{
-		Times:       []int{241, 228, 255, 249, 235},
-		Missclicks:  1,
-		SessionID:   &sessionID,
-		DisplayName: &displayName,
+	result, created, err := service.Create(context.Background(), CreateInput{
+		SubmissionID: "550E8400-E29B-41D4-A716-446655440000",
+		PlayerID:     "1B4E28BA-2FA1-11D2-883F-0016D3CCA427",
+		Times:        []int{241, 228, 255, 249, 235},
+		Missclicks:   1,
+		DisplayName:  &displayName,
 	})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -98,13 +108,14 @@ func TestServiceCreateNormalizesOptionalStringsAndDerivesValues(t *testing.T) {
 	if result == nil {
 		t.Fatal("expected result, got nil")
 	}
-
-	if repo.gotParams.SessionID == nil {
-		t.Fatal("expected normalized session id to be passed to repository")
+	if !created {
+		t.Fatal("expected newly created result")
 	}
-
-	if *repo.gotParams.SessionID != "session-1" {
-		t.Fatalf("expected trimmed session id, got %q", *repo.gotParams.SessionID)
+	if repo.gotParams.SubmissionID != testSubmissionID {
+		t.Fatalf("expected normalized submission ID, got %q", repo.gotParams.SubmissionID)
+	}
+	if repo.gotParams.PlayerID != testPlayerID {
+		t.Fatalf("expected normalized player ID, got %q", repo.gotParams.PlayerID)
 	}
 	if repo.gotParams.DisplayName == nil {
 		t.Fatal("expected normalized display name to be passed to repository")
@@ -130,7 +141,7 @@ func TestServiceCreateTreatsBlankDisplayNameAsMissing(t *testing.T) {
 	input := validCreateInput()
 	input.DisplayName = &displayName
 
-	_, err := service.Create(context.Background(), input)
+	_, _, err := service.Create(context.Background(), input)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -138,6 +149,61 @@ func TestServiceCreateTreatsBlankDisplayNameAsMissing(t *testing.T) {
 	if repo.gotParams.DisplayName != nil {
 		t.Fatalf("expected nil display name, got %q", *repo.gotParams.DisplayName)
 	}
+}
+
+func TestServiceCreateReturnsExistingIdenticalSubmission(t *testing.T) {
+	displayName := "David"
+	existing := &Result{
+		ID:           42,
+		SubmissionID: testSubmissionID,
+		PlayerID:     testPlayerID,
+		TotalRounds:  requiredRoundCount,
+		Times:        []int{241, 228, 255, 249, 235},
+		Missclicks:   1,
+		AverageMs:    241,
+		DisplayName:  &displayName,
+	}
+	repo := &fakeRepository{existingResult: existing}
+	service := NewService(repo)
+
+	result, created, err := service.Create(context.Background(), CreateInput{
+		SubmissionID: testSubmissionID,
+		PlayerID:     testPlayerID,
+		Times:        []int{241, 228, 255, 249, 235},
+		Missclicks:   1,
+		DisplayName:  &displayName,
+	})
+	if err != nil {
+		t.Fatalf("expected identical retry to succeed, got %v", err)
+	}
+	if created {
+		t.Fatal("expected retry to return existing result")
+	}
+	if result != existing {
+		t.Fatalf("expected existing result, got %#v", result)
+	}
+}
+
+func TestServiceCreateRejectsConflictingSubmission(t *testing.T) {
+	existing := &Result{
+		ID:           42,
+		SubmissionID: testSubmissionID,
+		PlayerID:     testPlayerID,
+		TotalRounds:  requiredRoundCount,
+		Times:        []int{241, 228, 255, 249, 235},
+		AverageMs:    241,
+	}
+	repo := &fakeRepository{existingResult: existing}
+	service := NewService(repo)
+	input := validCreateInput()
+	input.Times[0] = 300
+
+	result, created, err := service.Create(context.Background(), input)
+
+	if result != nil || created {
+		t.Fatalf("expected no result for conflicting retry, got %#v, created %t", result, created)
+	}
+	requireErrorCode(t, err, "score_submission_conflict")
 }
 
 func TestCalculateAverageMsRoundsDown(t *testing.T) {

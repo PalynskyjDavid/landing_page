@@ -21,20 +21,22 @@ Content-Type: application/json
 
 ```json
 {
+  "submissionId": "550e8400-e29b-41d4-a716-446655440000",
   "times": [241, 228, 255, 249, 235],
   "missclicks": 1,
-  "sessionId": "local-session-id",
   "displayName": "David"
 }
 ```
 
 The implementation applies these rules:
 
+- `submissionId` is a required UUID generated once for each completed game by the client. Every retry of that score reuses the same value.
 - `times` must contain exactly five positive integer values in milliseconds.
 - `missclicks` must be zero or greater.
-- `sessionId` is optional; surrounding whitespace is removed and an empty value becomes `null`.
 - `displayName` is optional; it is trimmed, an empty value becomes `null`, and its maximum length is 24 characters.
 - Unknown JSON fields are rejected.
+
+The browser does not send `playerId` in the JSON body. The backend reads it from the `reaction_player_id` cookie so a caller cannot select another player merely by changing the request body. If the cookie is missing or invalid, the backend generates a UUID and returns a one-year, `HttpOnly`, `SameSite=Lax` cookie. Production sets the cookie's `Secure` attribute through `COOKIE_SECURE=true`.
 
 The client does not send `totalRounds` or `averageMs`. The service derives a round count of five and calculates the average from `times` using integer division, which rounds a positive fractional result down. For example, a sum of `1208` divided by `5` is stored as `241`.
 
@@ -48,6 +50,7 @@ Content-Type: application/json
 ```json
 {
   "id": 42,
+  "submissionId": "550e8400-e29b-41d4-a716-446655440000",
   "totalRounds": 5,
   "averageMs": 241,
   "displayName": "David",
@@ -56,6 +59,8 @@ Content-Type: application/json
 ```
 
 `totalRounds` and `averageMs` in this response are the values calculated and stored by the backend.
+
+Repeating the same `submissionId` with identical normalized score data returns the existing score with `200 OK`. It does not insert another row. Reusing it with different times, missclicks, display name, or player cookie returns `409 Conflict`.
 
 ### Error response
 
@@ -71,10 +76,12 @@ Content-Type: application/json
 | HTTP status | Code | Condition |
 | --- | --- | --- |
 | `400` | `invalid_json` | Body cannot be decoded or contains an unknown field. |
+| `400` | `score_invalid_submission_id` | `submissionId` is missing or is not a UUID. |
 | `400` | `score_invalid_round_count` | `times` does not contain exactly five values. |
 | `400` | `score_invalid_time` | A reaction time is not positive. |
 | `400` | `score_invalid_missclicks` | `missclicks` is negative. |
 | `400` | `score_display_name_too_long` | Trimmed `displayName` is longer than 24 characters. |
+| `409` | `score_submission_conflict` | `submissionId` already belongs to different normalized score data or a different player. |
 
 Unexpected failures use status `500`, code `internal_error`, and do not expose internal details.
 
@@ -82,15 +89,15 @@ Unexpected failures use status `500`, code `internal_error`, and do not expose i
 
 These features deliberately remain outside the current score-correctness slice:
 
-1. The client sends an anonymous player identifier so multiple scores can belong to the same browser/player.
-2. A later reliability release adds a client-generated idempotency key with a database uniqueness constraint.
+1. A durable client outbox stores submissions that remain pending during a longer outage.
+2. Personal-score and personal-best endpoints use the anonymous player identifier.
 3. Upper bounds are defined for reaction time, missclicks, and request size.
 
-The nullable `display_name` column is now populated when a player chooses a name. The existing nullable `player_id` and `submission_id` columns remain unused until those contracts are agreed.
+`submission_id` and `player_id` are required UUID columns for migrated databases. Existing rows receive generated UUIDs during migration because their original browser and submission identities are unknowable. The older nullable `session_id` column is no longer used and remains only for a later data-retention decision.
 
 The frontend remembers a submitted non-empty display name in browser `localStorage` and pre-fills it for the next game. Clearing the field and saving anonymously removes that stored value. Browser storage is only a convenience; the backend still validates every request.
 
-**Open decision:** whether anonymous identity belongs in the body or is supplied through a separate browser/session mechanism.
+The anonymous cookie identifies one browser profile, not a verified person. It can be deleted and does not provide authentication or authorization.
 
 ## Leaderboard read
 

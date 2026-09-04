@@ -3,11 +3,13 @@ package results
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/palyndav/my-backend/internal/apperror"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // postgresQueryRower is the PostgreSQL execution capability this adapter needs.
@@ -27,31 +29,72 @@ func NewPostgresRepository(db postgresQueryRower) *PostgresRepository {
 	return &PostgresRepository{db: db}
 }
 
-func (r *PostgresRepository) Create(ctx context.Context, params CreateParams) (*Result, error) {
+func (r *PostgresRepository) Create(ctx context.Context, params CreateParams) (*Result, bool, error) {
 	timesJSON, err := json.Marshal(params.Times)
 	if err != nil {
-		return nil, apperror.Internal("score_times_encode_failed", "Failed to save score.", fmt.Errorf("marshal times: %w", err))
+		return nil, false, apperror.Internal("score_times_encode_failed", "Failed to save score.", fmt.Errorf("marshal times: %w", err))
 	}
 
 	result := &Result{
-		TotalRounds: params.TotalRounds,
-		Times:       append([]int(nil), params.Times...),
-		Missclicks:  params.Missclicks,
-		AverageMs:   params.AverageMs,
-		SessionID:   params.SessionID,
-		DisplayName: params.DisplayName,
+		SubmissionID: params.SubmissionID,
+		PlayerID:     params.PlayerID,
+		TotalRounds:  params.TotalRounds,
+		Times:        append([]int(nil), params.Times...),
+		Missclicks:   params.Missclicks,
+		AverageMs:    params.AverageMs,
+		DisplayName:  params.DisplayName,
 	}
 
 	err = r.db.QueryRow(ctx, postgresInsertResultSQL, pgx.NamedArgs{
-		"total_rounds": params.TotalRounds,
-		"times":        string(timesJSON),
-		"missclicks":   params.Missclicks,
-		"average_ms":   params.AverageMs,
-		"session_id":   params.SessionID,
-		"display_name": params.DisplayName,
+		"submission_id": params.SubmissionID,
+		"player_id":     params.PlayerID,
+		"total_rounds":  params.TotalRounds,
+		"times":         string(timesJSON),
+		"missclicks":    params.Missclicks,
+		"average_ms":    params.AverageMs,
+		"display_name":  params.DisplayName,
 	}).Scan(&result.ID, &result.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		existing, lookupErr := r.findBySubmissionID(ctx, params.SubmissionID)
+		if lookupErr != nil {
+			return nil, false, lookupErr
+		}
+		return existing, false, nil
+	}
 	if err != nil {
-		return nil, apperror.Internal("result_insert_failed", "Failed to save score.", err)
+		return nil, false, apperror.Internal("result_insert_failed", "Failed to save score.", err)
+	}
+
+	return result, true, nil
+}
+
+func (r *PostgresRepository) findBySubmissionID(ctx context.Context, submissionID string) (*Result, error) {
+	result := &Result{}
+	var timesJSON []byte
+	var displayName pgtype.Text
+
+	err := r.db.QueryRow(ctx, postgresSelectResultBySubmissionSQL, pgx.NamedArgs{
+		"submission_id": submissionID,
+	}).Scan(
+		&result.ID,
+		&result.TotalRounds,
+		&timesJSON,
+		&result.Missclicks,
+		&result.AverageMs,
+		&result.SubmissionID,
+		&result.PlayerID,
+		&displayName,
+		&result.CreatedAt,
+	)
+	if err != nil {
+		return nil, apperror.Internal("result_idempotency_lookup_failed", "Failed to save score.", err)
+	}
+
+	if err := json.Unmarshal(timesJSON, &result.Times); err != nil {
+		return nil, apperror.Internal("score_times_decode_failed", "Failed to save score.", fmt.Errorf("unmarshal times: %w", err))
+	}
+	if displayName.Valid {
+		result.DisplayName = &displayName.String
 	}
 
 	return result, nil

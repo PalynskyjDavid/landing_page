@@ -129,7 +129,7 @@ Depends on Stages 1 and 2.
 
 - [ ] Define the supported score, statistics, and event use cases. **Pair**
 - [ ] Define leaderboard reads and anonymous player identity. **Pair**
-- [ ] Define client-generated idempotency keys and duplicate-submission behavior. **Pair**
+- [x] Define client-generated idempotency keys and duplicate-submission behavior. **Pair**
 - [ ] Distinguish backend liveness from database-dependent readiness. **Pair**
 - [ ] Specify API requests, responses, validation errors, and status codes. **David**
 - [ ] Introduce an OpenAPI document. **David**
@@ -139,9 +139,9 @@ Depends on Stages 1 and 2.
 
 The first draft contract is recorded in `docs/contracts/reaction-results-api.md`. It separates the currently implemented score submission from proposed leaderboard and identity changes; open decisions must be resolved before it is promoted to OpenAPI.
 
-The score-correctness slice now fixes a completed game at five rounds. The backend validates the five raw reaction times and derives both `totalRounds` and the rounded-down `averageMs`; anonymous identity and idempotent retries remain deferred.
+The score-correctness slice now fixes a completed game at five rounds. The backend validates the five raw reaction times and derives both `totalRounds` and the rounded-down `averageMs`.
 
-The result screen now accepts an optional display name, remembers it locally in the browser, and stores the backend-trimmed value with the score. Stable anonymous player identity is still a separate future decision.
+The result screen accepts an optional display name, remembers it locally in the browser, and stores the backend-trimmed value with the score. The backend now issues a long-lived anonymous player cookie, while each finished game receives a client-generated submission UUID for safe retries.
 
 The first leaderboard read is defined and implemented with a default limit of 10, a maximum of 50, and safe two-level sorting by average time, best time, or misclicks in either best-first or worst-first direction. Creation time and score ID provide deterministic final tie-breaking. Pagination remains deferred.
 
@@ -149,9 +149,9 @@ The leaderboard UI now offers Top 5, Top 10, and Top 20 views. Each selection is
 
 ### Prepared next slice: reliable score delivery
 
-- [ ] Define the `submissionId` contract and the response for a repeated ID. **Pair**
-- [ ] Generate one UUID when a finished game becomes a score submission and reuse it for every attempt. **David**
-- [ ] Make score creation idempotent in the Go service and PostgreSQL repository. **Pair**
+- [x] Define the `submissionId` contract and the response for a repeated ID. **Pair**
+- [x] Generate one UUID when a finished game becomes a score submission and reuse it for every attempt. **Codex**
+- [x] Make score creation idempotent in the Go service and PostgreSQL repository. **Codex**
 - [ ] Add a small in-memory retry policy for retryable network, timeout, rate-limit, and server failures. **David**
 - [ ] Store still-pending score submissions in IndexedDB as a domain-specific outbox. **Pair**
 - [ ] Drain the outbox on application startup, the browser `online` event, and a manual retry action. **David**

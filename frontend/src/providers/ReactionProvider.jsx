@@ -22,6 +22,7 @@ export function GameProvider({ children }) {
 
     const startTimeRef = useRef(null);
     const timerRef = useRef(null);
+    const submissionIdRef = useRef(null);
 
     useEffect(() => {
         // Runs when component is destroyed
@@ -84,12 +85,15 @@ export function GameProvider({ children }) {
         }
 
         saveScoreMutation.reset();
+        submissionIdRef.current = null;
         setGame(initialState);
     };
 
     const saveScore = (displayName) => {
         const normalizedDisplayName = displayName.trim();
+        submissionIdRef.current ??= crypto.randomUUID();
         const payload = {
+            submissionId: submissionIdRef.current,
             times: game.times,
             missclicks: game.misslicks,
         };

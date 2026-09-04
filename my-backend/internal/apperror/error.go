@@ -45,6 +45,10 @@ func BadRequest(code string, message string, err error) *Error {
 	return New(http.StatusBadRequest, code, message, err)
 }
 
+func Conflict(code string, message string, err error) *Error {
+	return New(http.StatusConflict, code, message, err)
+}
+
 func Internal(code string, message string, err error) *Error {
 	return New(http.StatusInternalServerError, code, message, err)
 }

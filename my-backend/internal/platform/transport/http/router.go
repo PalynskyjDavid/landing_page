@@ -32,7 +32,7 @@ func NewRouter(cfg config.Config, registrars ...Registrar) http.Handler {
 			AllowedOrigins:   []string{cfg.CORS_ORIGIN},
 			AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
-			AllowCredentials: false,
+			AllowCredentials: true,
 			MaxAge:           300,
 		}))
 	}
@@ -47,9 +47,12 @@ func NewRouter(cfg config.Config, registrars ...Registrar) http.Handler {
 		})
 	})
 
-	for _, registrar := range registrars {
-		registrar.RegisterRoutes(router)
-	}
+	router.Group(func(apiRouter chi.Router) {
+		apiRouter.Use(AnonymousPlayer(cfg.COOKIE_SECURE))
+		for _, registrar := range registrars {
+			registrar.RegisterRoutes(apiRouter)
+		}
+	})
 
 	return router
 }

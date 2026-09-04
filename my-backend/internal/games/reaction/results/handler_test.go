@@ -7,7 +7,14 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	httpapi "github.com/palyndav/my-backend/internal/platform/transport/http"
 )
+
+func serveCreateAsTestPlayer(handler *Handler, response *httptest.ResponseRecorder, request *http.Request) {
+	request.AddCookie(&http.Cookie{Name: httpapi.AnonymousPlayerCookieName, Value: testPlayerID})
+	httpapi.AnonymousPlayer(false)(http.HandlerFunc(handler.handleCreate)).ServeHTTP(response, request)
+}
 
 func TestHandleCreateReturnsServerDerivedValues(t *testing.T) {
 	createdAt := time.Date(2026, time.September, 3, 12, 0, 0, 0, time.UTC)
@@ -16,11 +23,11 @@ func TestHandleCreateReturnsServerDerivedValues(t *testing.T) {
 	request := httptest.NewRequest(
 		http.MethodPost,
 		"/scores",
-		strings.NewReader(`{"times":[241,228,255,249,235],"missclicks":1,"displayName":"  David  "}`),
+		strings.NewReader(`{"submissionId":"550e8400-e29b-41d4-a716-446655440000","times":[241,228,255,249,235],"missclicks":1,"displayName":"  David  "}`),
 	)
 	response := httptest.NewRecorder()
 
-	handler.handleCreate(response, request)
+	serveCreateAsTestPlayer(handler, response, request)
 
 	if response.Code != http.StatusCreated {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, response.Code, response.Body.String())
@@ -32,6 +39,9 @@ func TestHandleCreateReturnsServerDerivedValues(t *testing.T) {
 	}
 	if body.ID != 1 {
 		t.Fatalf("expected id 1, got %d", body.ID)
+	}
+	if body.SubmissionID != testSubmissionID {
+		t.Fatalf("expected submission ID %q, got %q", testSubmissionID, body.SubmissionID)
 	}
 	if body.TotalRounds != requiredRoundCount {
 		t.Fatalf("expected %d rounds, got %d", requiredRoundCount, body.TotalRounds)
@@ -57,13 +67,66 @@ func TestHandleCreateRejectsClientCalculatedAverage(t *testing.T) {
 	)
 	response := httptest.NewRecorder()
 
-	handler.handleCreate(response, request)
+	serveCreateAsTestPlayer(handler, response, request)
 
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, response.Code)
 	}
 	if repo.createCalls != 0 {
 		t.Fatalf("expected repository not to be called, got %d calls", repo.createCalls)
+	}
+}
+
+func TestHandleCreateReturnsExistingSubmission(t *testing.T) {
+	createdAt := time.Date(2026, time.September, 3, 12, 0, 0, 0, time.UTC)
+	displayName := "David"
+	repo := &fakeRepository{existingResult: &Result{
+		ID:           42,
+		SubmissionID: testSubmissionID,
+		PlayerID:     testPlayerID,
+		TotalRounds:  requiredRoundCount,
+		Times:        []int{241, 228, 255, 249, 235},
+		Missclicks:   1,
+		AverageMs:    241,
+		DisplayName:  &displayName,
+		CreatedAt:    createdAt,
+	}}
+	handler := NewHandler(nil, NewService(repo))
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/scores",
+		strings.NewReader(`{"submissionId":"550e8400-e29b-41d4-a716-446655440000","times":[241,228,255,249,235],"missclicks":1,"displayName":"David"}`),
+	)
+	response := httptest.NewRecorder()
+
+	serveCreateAsTestPlayer(handler, response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, response.Code, response.Body.String())
+	}
+}
+
+func TestHandleCreateReturnsConflictForChangedDuplicate(t *testing.T) {
+	repo := &fakeRepository{existingResult: &Result{
+		ID:           42,
+		SubmissionID: testSubmissionID,
+		PlayerID:     testPlayerID,
+		TotalRounds:  requiredRoundCount,
+		Times:        []int{241, 228, 255, 249, 235},
+		AverageMs:    241,
+	}}
+	handler := NewHandler(nil, NewService(repo))
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/scores",
+		strings.NewReader(`{"submissionId":"550e8400-e29b-41d4-a716-446655440000","times":[300,228,255,249,235],"missclicks":0}`),
+	)
+	response := httptest.NewRecorder()
+
+	serveCreateAsTestPlayer(handler, response, request)
+
+	if response.Code != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, response.Code, response.Body.String())
 	}
 }
 

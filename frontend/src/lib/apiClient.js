@@ -140,6 +140,7 @@ export async function request({
   try {
     const response = await fetch(url, {
       method: requestMethod,
+      credentials: "include",
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",

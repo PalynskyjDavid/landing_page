@@ -2,6 +2,7 @@ package results
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -11,12 +12,14 @@ import (
 	"github.com/palyndav/my-backend/internal/apperror"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // fakePostgresRow simulates the row returned by pgx.QueryRow.
 type fakePostgresRow struct {
 	id        int64
 	createdAt time.Time
+	result    *Result
 	err       error
 }
 
@@ -45,6 +48,10 @@ func (r *fakePostgresJSONRow) Scan(dest ...any) error {
 func (r *fakePostgresRow) Scan(dest ...any) error {
 	if r.err != nil {
 		return r.err
+	}
+
+	if len(dest) == 9 {
+		return r.scanStoredResult(dest)
 	}
 
 	if len(dest) != 2 {
@@ -76,10 +83,38 @@ func (r *fakePostgresRow) Scan(dest ...any) error {
 	return nil
 }
 
+func (r *fakePostgresRow) scanStoredResult(dest []any) error {
+	if r.result == nil {
+		return errors.New("stored result is not configured")
+	}
+
+	timesJSON, err := json.Marshal(r.result.Times)
+	if err != nil {
+		return err
+	}
+
+	*dest[0].(*int64) = r.result.ID
+	*dest[1].(*int) = r.result.TotalRounds
+	*dest[2].(*[]byte) = timesJSON
+	*dest[3].(*int) = r.result.Missclicks
+	*dest[4].(*int) = r.result.AverageMs
+	*dest[5].(*string) = r.result.SubmissionID
+	*dest[6].(*string) = r.result.PlayerID
+	displayName := dest[7].(*pgtype.Text)
+	if r.result.DisplayName != nil {
+		*displayName = pgtype.Text{String: *r.result.DisplayName, Valid: true}
+	}
+	*dest[8].(*time.Time) = r.result.CreatedAt
+
+	return nil
+}
+
 type fakePostgresQueryRower struct {
 	gotSQL  string
+	gotSQLs []string
 	gotArgs []any
 	row     pgx.Row
+	rows    []pgx.Row
 }
 
 func (f *fakePostgresQueryRower) QueryRow(
@@ -88,7 +123,13 @@ func (f *fakePostgresQueryRower) QueryRow(
 	args ...any,
 ) pgx.Row {
 	f.gotSQL = sql
+	f.gotSQLs = append(f.gotSQLs, sql)
 	f.gotArgs = append([]any(nil), args...)
+	if len(f.rows) > 0 {
+		row := f.rows[0]
+		f.rows = f.rows[1:]
+		return row
+	}
 
 	return f.row
 }
@@ -114,19 +155,19 @@ func TestPostgresRepositoryCreateMapsQueryAndReturnsStoredResult(t *testing.T) {
 	}
 
 	repository := NewPostgresRepository(fakeDB)
-	sessionID := "session-123"
 	displayName := "David"
 	params := CreateParams{
-		TotalRounds: requiredRoundCount,
-		Times:       []int{241, 228, 255, 249, 235},
-		Missclicks:  1,
-		AverageMs:   241,
-		SessionID:   &sessionID,
-		DisplayName: &displayName,
+		SubmissionID: testSubmissionID,
+		PlayerID:     testPlayerID,
+		TotalRounds:  requiredRoundCount,
+		Times:        []int{241, 228, 255, 249, 235},
+		Missclicks:   1,
+		AverageMs:    241,
+		DisplayName:  &displayName,
 	}
 
 	// Act
-	result, err := repository.Create(
+	result, created, err := repository.Create(
 		context.Background(),
 		params,
 	)
@@ -139,16 +180,20 @@ func TestPostgresRepositoryCreateMapsQueryAndReturnsStoredResult(t *testing.T) {
 	if result == nil {
 		t.Fatal("expected result, got nil")
 	}
+	if !created {
+		t.Fatal("expected result to be newly created")
+	}
 
 	wantResult := &Result{
-		ID:          42,
-		TotalRounds: params.TotalRounds,
-		Times:       params.Times,
-		Missclicks:  params.Missclicks,
-		AverageMs:   params.AverageMs,
-		SessionID:   params.SessionID,
-		DisplayName: params.DisplayName,
-		CreatedAt:   createdAt,
+		ID:           42,
+		SubmissionID: params.SubmissionID,
+		PlayerID:     params.PlayerID,
+		TotalRounds:  params.TotalRounds,
+		Times:        params.Times,
+		Missclicks:   params.Missclicks,
+		AverageMs:    params.AverageMs,
+		DisplayName:  params.DisplayName,
+		CreatedAt:    createdAt,
 	}
 	if !reflect.DeepEqual(result, wantResult) {
 		t.Fatalf("unexpected result:\nwant: %#v\ngot:  %#v", wantResult, result)
@@ -167,12 +212,13 @@ func TestPostgresRepositoryCreateMapsQueryAndReturnsStoredResult(t *testing.T) {
 	}
 
 	wantArgs := pgx.NamedArgs{
-		"total_rounds": params.TotalRounds,
-		"times":        `[241,228,255,249,235]`,
-		"missclicks":   params.Missclicks,
-		"average_ms":   params.AverageMs,
-		"session_id":   params.SessionID,
-		"display_name": params.DisplayName,
+		"submission_id": params.SubmissionID,
+		"player_id":     params.PlayerID,
+		"total_rounds":  params.TotalRounds,
+		"times":         `[241,228,255,249,235]`,
+		"missclicks":    params.Missclicks,
+		"average_ms":    params.AverageMs,
+		"display_name":  params.DisplayName,
 	}
 	if !reflect.DeepEqual(namedArgs, wantArgs) {
 		t.Fatalf("unexpected query arguments:\nwant: %#v\ngot:  %#v", wantArgs, namedArgs)
@@ -186,14 +232,16 @@ func TestPostgresRepositoryCreateWrapsDatabaseError(t *testing.T) {
 	}
 	repository := NewPostgresRepository(fakeDB)
 
-	result, err := repository.Create(context.Background(), CreateParams{
-		TotalRounds: requiredRoundCount,
-		Times:       []int{241, 228, 255, 249, 235},
-		AverageMs:   241,
+	result, created, err := repository.Create(context.Background(), CreateParams{
+		SubmissionID: testSubmissionID,
+		PlayerID:     testPlayerID,
+		TotalRounds:  requiredRoundCount,
+		Times:        []int{241, 228, 255, 249, 235},
+		AverageMs:    241,
 	})
 
-	if result != nil {
-		t.Fatalf("expected nil result, got %#v", result)
+	if result != nil || created {
+		t.Fatalf("expected nil result, got %#v, created %t", result, created)
 	}
 	if err == nil {
 		t.Fatal("expected repository error, got nil")
@@ -205,6 +253,55 @@ func TestPostgresRepositoryCreateWrapsDatabaseError(t *testing.T) {
 	appErr := apperror.From(err)
 	if appErr.Code != "result_insert_failed" {
 		t.Fatalf("expected error code result_insert_failed, got %q", appErr.Code)
+	}
+}
+
+func TestPostgresRepositoryCreateReturnsExistingSubmission(t *testing.T) {
+	createdAt := time.Date(2026, time.September, 1, 12, 0, 0, 0, time.UTC)
+	displayName := "David"
+	existing := &Result{
+		ID:           42,
+		SubmissionID: testSubmissionID,
+		PlayerID:     testPlayerID,
+		TotalRounds:  requiredRoundCount,
+		Times:        []int{241, 228, 255, 249, 235},
+		Missclicks:   1,
+		AverageMs:    241,
+		DisplayName:  &displayName,
+		CreatedAt:    createdAt,
+	}
+	fakeDB := &fakePostgresQueryRower{rows: []pgx.Row{
+		&fakePostgresRow{err: pgx.ErrNoRows},
+		&fakePostgresRow{result: existing},
+	}}
+	repository := NewPostgresRepository(fakeDB)
+
+	result, created, err := repository.Create(context.Background(), CreateParams{
+		SubmissionID: testSubmissionID,
+		PlayerID:     testPlayerID,
+		TotalRounds:  requiredRoundCount,
+		Times:        []int{241, 228, 255, 249, 235},
+		Missclicks:   1,
+		AverageMs:    241,
+		DisplayName:  &displayName,
+	})
+
+	if err != nil {
+		t.Fatalf("expected existing submission, got error %v", err)
+	}
+	if created {
+		t.Fatal("expected existing submission not to be newly created")
+	}
+	if !reflect.DeepEqual(result, existing) {
+		t.Fatalf("expected %#v, got %#v", existing, result)
+	}
+	if !reflect.DeepEqual(fakeDB.gotSQLs, []string{postgresInsertResultSQL, postgresSelectResultBySubmissionSQL}) {
+		t.Fatalf("unexpected query sequence: %#v", fakeDB.gotSQLs)
+	}
+
+	namedArgs := fakeDB.gotArgs[0].(pgx.NamedArgs)
+	if namedArgs["submission_id"] != testSubmissionID {
+		t.Fatalf("expected lookup by submission ID, got %#v", namedArgs)
 	}
 }
 

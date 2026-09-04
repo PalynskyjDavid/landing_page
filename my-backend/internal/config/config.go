@@ -24,8 +24,9 @@ type Config struct {
 	MAX_CONNS          int32         `env:"MAX_CONNS" envDefault:"10"`
 
 	// Backend
-	BACKEND_PORT int    `env:"BACKEND_PORT" envDefault:"3001"`
-	DATABASE_URL string `env:"DATABASE_URL,required"`
+	BACKEND_PORT  int    `env:"BACKEND_PORT" envDefault:"3001"`
+	DATABASE_URL  string `env:"DATABASE_URL,required"`
+	COOKIE_SECURE bool   `env:"COOKIE_SECURE" envDefault:"false"`
 
 	// Frontend
 	CORS_ORIGIN string `env:"CORS_ORIGIN" envDefault:"http://localhost:5173"`

@@ -35,18 +35,20 @@ type LeaderboardParams struct {
 
 // CreateInput contains values supplied by the caller.
 type CreateInput struct {
-	Times       []int
-	Missclicks  int
-	SessionID   *string
-	DisplayName *string
+	SubmissionID string
+	PlayerID     string
+	Times        []int
+	Missclicks   int
+	DisplayName  *string
 }
 
 // CreateParams contains validated and derived values ready for persistence.
 type CreateParams struct {
-	TotalRounds int
-	Times       []int
-	Missclicks  int
-	AverageMs   int
-	SessionID   *string
-	DisplayName *string
+	SubmissionID string
+	PlayerID     string
+	TotalRounds  int
+	Times        []int
+	Missclicks   int
+	AverageMs    int
+	DisplayName  *string
 }

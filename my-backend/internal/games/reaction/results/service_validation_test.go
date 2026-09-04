@@ -28,6 +28,20 @@ func TestServiceCreateRejectsInvalidInput(t *testing.T) {
 		wantCode string
 	}{
 		{
+			name: "missing submission ID",
+			change: func(input *CreateInput) {
+				input.SubmissionID = ""
+			},
+			wantCode: "score_invalid_submission_id",
+		},
+		{
+			name: "invalid player ID",
+			change: func(input *CreateInput) {
+				input.PlayerID = "not-a-uuid"
+			},
+			wantCode: "score_invalid_player_id",
+		},
+		{
 			name: "missing times",
 			change: func(input *CreateInput) {
 				input.Times = nil
@@ -79,7 +93,7 @@ func TestServiceCreateRejectsInvalidInput(t *testing.T) {
 			input := validCreateInput()
 			test.change(&input)
 
-			result, err := service.Create(context.Background(), input)
+			result, _, err := service.Create(context.Background(), input)
 
 			requireErrorCode(t, err, test.wantCode)
 			if result != nil {
