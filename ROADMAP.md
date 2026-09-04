@@ -120,7 +120,7 @@ Depends on Stage 1.
 - [ ] Normalize environment-variable names and validation. **David**
 - [x] Make database migrations reproducible with a pinned Tern tool and Task commands. **Pair**
 - [ ] Add seed data for local development and tests. **David**
-- [ ] Add health and readiness checks. **David**
+- [x] Add health and readiness checks. **Codex**
 - [ ] Document setup, startup, shutdown, and reset procedures. **Pair**
 
 ## Stage 3 — API and database contracts
@@ -130,7 +130,7 @@ Depends on Stages 1 and 2.
 - [ ] Define the supported score, statistics, and event use cases. **Pair**
 - [ ] Define leaderboard reads and anonymous player identity. **Pair**
 - [x] Define client-generated idempotency keys and duplicate-submission behavior. **Pair**
-- [ ] Distinguish backend liveness from database-dependent readiness. **Pair**
+- [x] Distinguish backend liveness from database-dependent readiness. See ADR 0002. **Pair**
 - [ ] Specify API requests, responses, validation errors, and status codes. **David**
 - [ ] Introduce an OpenAPI document. **David**
 - [ ] Decide whether to generate Go server types and frontend client types. **Pair**
@@ -152,11 +152,16 @@ The leaderboard UI now offers Top 5, Top 10, and Top 20 views. Each selection is
 - [x] Define the `submissionId` contract and the response for a repeated ID. **Pair**
 - [x] Generate one UUID when a finished game becomes a score submission and reuse it for every attempt. **Codex**
 - [x] Make score creation idempotent in the Go service and PostgreSQL repository. **Codex**
-- [ ] Add a small in-memory retry policy for retryable network, timeout, rate-limit, and server failures. **David**
-- [ ] Store still-pending score submissions in IndexedDB as a domain-specific outbox. **Pair**
-- [ ] Drain the outbox on application startup, the browser `online` event, and a manual retry action. **David**
-- [ ] Show queued, sending, saved, and permanently failed states without blocking a new game. **David**
+- [x] Add a small in-memory retry policy for retryable network, timeout, rate-limit, and server failures. **Codex**
+- [x] Store still-pending score submissions in IndexedDB as a domain-specific outbox. See ADR 0002. **Codex**
+- [x] Drain the outbox on application startup, the browser `online` event, and a manual retry action. **Codex**
+- [x] Show queued, sending, saved, and permanently failed states without blocking a new game. **Codex**
 - [ ] Verify that an outage followed by recovery saves exactly one score. **Pair**
+
+The score outbox is intentionally domain-specific. The API client identifies
+temporary failures, but it does not accept a generic queueable boolean. New
+operations may adopt durable replay only after their idempotency, ordering,
+expiry, and permanent-failure behavior are defined.
 
 ## Stage 4 — Quality foundations
 

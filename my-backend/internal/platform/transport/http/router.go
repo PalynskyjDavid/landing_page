@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -19,7 +18,7 @@ type Registrar interface {
 // Add logger later
 // Add recoverer for easier debugging
 // Add timeout, throttle, check out limiter and other interesting capabilities
-func NewRouter(cfg config.Config, registrars ...Registrar) http.Handler {
+func NewRouter(cfg config.Config, readinessChecker ReadinessChecker, registrars ...Registrar) http.Handler {
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
@@ -37,15 +36,10 @@ func NewRouter(cfg config.Config, registrars ...Registrar) http.Handler {
 		}))
 	}
 
-	router.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"status":  "ok",
-			"service": "my-backend",
-		})
-	})
+	health := newHealthHandler(readinessChecker)
+	router.Get("/health", health.live)
+	router.Get("/health/live", health.live)
+	router.Get("/health/ready", health.ready)
 
 	router.Group(func(apiRouter chi.Router) {
 		apiRouter.Use(AnonymousPlayer(cfg.COOKIE_SECURE))

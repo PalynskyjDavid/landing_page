@@ -41,7 +41,7 @@ func main() {
 	resultsHandler := results.NewHandler(logger, resultsService)
 	// statsHandler := stats.NewHandler(statsService)
 
-	router := httpapi.NewRouter(cfg, resultsHandler)
+	router := httpapi.NewRouter(cfg, db, resultsHandler)
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.BACKEND_PORT),
 		Handler:           router,

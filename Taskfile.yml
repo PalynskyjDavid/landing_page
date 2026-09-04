@@ -41,6 +41,7 @@ tasks:
     desc: Run the current automated test suites
     cmds:
       - task: backend:test
+      - task: frontend:test
 
   build:
     desc: Build the backend and frontend
@@ -144,6 +145,12 @@ tasks:
     dir: "{{.FRONTEND_DIR}}"
     cmds:
       - npm run lint
+
+  frontend:test:
+    desc: Run frontend unit tests once
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm run test
 
   frontend:build:
     desc: Create the Vite production build

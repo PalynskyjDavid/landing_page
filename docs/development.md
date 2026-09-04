@@ -29,7 +29,7 @@ Runs the complete read-only quality gate in this order:
 
 1. Backend and frontend formatting checks.
 2. Go and JavaScript static analysis.
-3. Go tests.
+3. Go and frontend unit tests.
 4. Go and frontend production builds.
 
 The command reports problems but is not intended to rewrite source files.
@@ -126,9 +126,14 @@ Do not run automatic dependency upgrades or broad `--fix` commands merely to mak
 - The Go test suite is included.
 - PostgreSQL startup and migrations are reproducible through Task and were
   verified from an empty database.
-- A frontend unit-test framework has not been added yet.
+- Vitest runs frontend unit tests, including the IndexedDB score outbox and
+  reliable-delivery state machine.
 - CI has not been added yet.
 - Vulnerability remediation is a separate reviewed task; dependency audit results are not automatically modified.
+
+The production dependency audit currently reports no known vulnerabilities
+after a targeted React Router update. Development-only audit findings remain a
+separate review task and were not modified automatically.
 
 ## Baseline results (2026-08-27)
 

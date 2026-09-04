@@ -73,25 +73,31 @@ Repeating the same `submissionId` with identical normalized score data returns t
 }
 ```
 
-| HTTP status | Code | Condition |
-| --- | --- | --- |
-| `400` | `invalid_json` | Body cannot be decoded or contains an unknown field. |
-| `400` | `score_invalid_submission_id` | `submissionId` is missing or is not a UUID. |
-| `400` | `score_invalid_round_count` | `times` does not contain exactly five values. |
-| `400` | `score_invalid_time` | A reaction time is not positive. |
-| `400` | `score_invalid_missclicks` | `missclicks` is negative. |
-| `400` | `score_display_name_too_long` | Trimmed `displayName` is longer than 24 characters. |
-| `409` | `score_submission_conflict` | `submissionId` already belongs to different normalized score data or a different player. |
+| HTTP status | Code                          | Condition                                                                                |
+| ----------- | ----------------------------- | ---------------------------------------------------------------------------------------- |
+| `400`       | `invalid_json`                | Body cannot be decoded or contains an unknown field.                                     |
+| `400`       | `score_invalid_submission_id` | `submissionId` is missing or is not a UUID.                                              |
+| `400`       | `score_invalid_round_count`   | `times` does not contain exactly five values.                                            |
+| `400`       | `score_invalid_time`          | A reaction time is not positive.                                                         |
+| `400`       | `score_invalid_missclicks`    | `missclicks` is negative.                                                                |
+| `400`       | `score_display_name_too_long` | Trimmed `displayName` is longer than 24 characters.                                      |
+| `409`       | `score_submission_conflict`   | `submissionId` already belongs to different normalized score data or a different player. |
 
 Unexpected failures use status `500`, code `internal_error`, and do not expose internal details.
 
-## Deferred submission features
+## Reliable client delivery
 
-These features deliberately remain outside the current score-correctness slice:
+Before its first network attempt, the frontend stores a completed score in an
+IndexedDB outbox. Temporary failures receive bounded retries. If those fail,
+the score remains pending while the client periodically checks
+`GET /health/ready`. Recovery drains pending scores oldest-first and one at a
+time. Every attempt reuses the original `submissionId`.
 
-1. A durable client outbox stores submissions that remain pending during a longer outage.
-2. Personal-score and personal-best endpoints use the anonymous player identifier.
-3. Upper bounds are defined for reaction time, missclicks, and request size.
+Permanent client errors are marked failed rather than retried indefinitely.
+The architecture and its rejected generic queue flag are recorded in ADR 0002.
+
+Personal-score endpoints, explicit input upper bounds, and a management view
+for permanently failed outbox records remain deferred.
 
 `submission_id` and `player_id` are required UUID columns for migrated databases. Existing rows receive generated UUIDs during migration because their original browser and submission identities are unknowable. The older nullable `session_id` column is no longer used and remains only for a later data-retention decision.
 

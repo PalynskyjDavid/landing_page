@@ -89,8 +89,10 @@ function normalizeError({ error, response, payload, url, method }) {
   }
 
   const status = response?.status ?? null;
-  const details = payload && typeof payload === "object" ? payload : payload ? { message: payload } : null;
-  const errorDetails = details?.error && typeof details.error === "object" ? details.error : details;
+  const details =
+    payload && typeof payload === "object" ? payload : payload ? { message: payload } : null;
+  const errorDetails =
+    details?.error && typeof details.error === "object" ? details.error : details;
   const message =
     errorDetails?.message ||
     error?.message ||
@@ -103,11 +105,7 @@ function normalizeError({ error, response, payload, url, method }) {
     url,
     method,
     isRetryable:
-      !status ||
-      status === 408 ||
-      status === 429 ||
-      status >= 500 ||
-      error?.name === "AbortError",
+      !status || status === 408 || status === 429 || status >= 500 || error?.name === "AbortError",
   });
 }
 
@@ -143,7 +141,7 @@ export async function request({
       credentials: "include",
       headers: {
         Accept: "application/json",
-        "Content-Type": "application/json",
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         ...headers,
       },
       body,
