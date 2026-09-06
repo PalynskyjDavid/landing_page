@@ -2,6 +2,10 @@
 
 This roadmap is both the project TODO list and the working agreement for learning-oriented development.
 
+Current focus (2026-09-06): the local quality gate and first CI workflow are ready
+for review. Next: push the branch, inspect the first hosted CI run together, then
+choose how to automate complete browser scenarios. See `docs/ci.md`.
+
 ## How we will work
 
 - David chooses which implementation tasks he wants to write manually.
@@ -55,7 +59,7 @@ This roadmap is both the project TODO list and the working agreement for learnin
 
 Stages can contain parallel tasks, but a stage should not be treated as complete until its exit criteria are satisfied.
 
-## Current milestone: Stage 0 — Protect the baseline
+## Stage 0 — Protect the baseline
 
 ### Goal
 
@@ -82,7 +86,7 @@ Make the current work recoverable and establish exactly what exists before restr
 - Baseline commands and known failures are documented.
 - No architecture cleanup has begun prematurely.
 
-## Next milestone preview: Stage 1 — Product and architecture decisions
+## Stage 1 — Product and architecture decisions
 
 ### Goal
 
@@ -128,7 +132,7 @@ Depends on Stage 1.
 Depends on Stages 1 and 2.
 
 - [ ] Define the supported score, statistics, and event use cases. **Pair**
-- [ ] Define leaderboard reads and anonymous player identity. **Pair**
+- [x] Define leaderboard reads and anonymous player identity. **Pair**
 - [x] Define client-generated idempotency keys and duplicate-submission behavior. **Pair**
 - [x] Distinguish backend liveness from database-dependent readiness. See ADR 0002. **Pair**
 - [ ] Specify API requests, responses, validation errors, and status codes. **David**
@@ -159,7 +163,7 @@ The leaderboard UI now offers Top 5, Top 10, and Top 20 views. Each selection is
 - [x] Add dismissible delivery popups across pages for saving, retries, waiting scores, recovery, and completion; coalesce repeated health probes. **Codex**
 - [x] Add per-tab connection-loss simulation and restore controls, with a persistent banner and recovery after refresh. **Codex**
 - [x] Synchronize player display names using a migration and triggers, preserving original names for idempotent retries; add PostgreSQL integration coverage. **Codex**
-- [ ] Verify that an outage followed by recovery saves exactly one score. **Pair**
+- [x] Verify real backend and database outages, refresh persistence, automatic recovery, and exactly one saved row per submission. See the 2026-09-06 verification record. **Codex**
 
 The score outbox is intentionally domain-specific. The API client identifies
 temporary failures, but it does not accept a generic queueable boolean. New
@@ -174,14 +178,15 @@ Frontend and backend work can proceed in parallel after Stage 2; contract-depend
 
 - [x] Add one read-only local quality command for formatting, linting, tests, and builds. **Codex setup**
 - [x] Pin and document the initial Node.js, Task, golangci-lint, and Prettier versions. **Codex setup**
-- [ ] Manually resolve the baseline formatting findings. **David; Codex reviews**
-- [ ] Manually resolve the baseline lint findings. **David; Codex reviews**
+- [x] Resolve the baseline formatting findings in a separate formatting-only commit. **Codex, authorized by David**
+- [x] Resolve the baseline lint findings; the complete local quality gate passes. **Pair**
 - [ ] Review dependency-audit findings without applying an automatic bulk upgrade. **Pair**
 
 ### Frontend
 
 - [ ] Plan an incremental JavaScript-to-TypeScript migration. **Pair**
-- [ ] Add Vitest and React Testing Library. **David**
+- [x] Add Vitest and outbox/delivery unit tests. **Codex**
+- [ ] Add React Testing Library if selected for component-level tests. **Pair**
 - [ ] Extract and test the reaction-game state machine. **David**
 - [ ] Test API error, loading, empty, and success states. **David**
 - [ ] Add automated accessibility checks. **Codex setup; David fixes findings**
@@ -189,7 +194,7 @@ Frontend and backend work can proceed in parallel after Stage 2; contract-depend
 ### Backend
 
 - [ ] Expand Go service and handler unit tests. **David**
-- [ ] Add PostgreSQL repository integration tests. **David**
+- [x] Add PostgreSQL integration coverage for player names, retries, concurrency, and migration down/up. **Codex**
 - [x] Add formatting, `go vet`, and lint checks. **Codex setup**
 - [ ] Test configuration and graceful shutdown behavior. **David**
 - [x] Test migrations from an empty PostgreSQL database. **Pair**
@@ -210,8 +215,9 @@ Depends on the contracts and safety nets from Stages 3 and 4.
 
 Depends on a coherent full-stack feature flow from Stage 5.
 
-- [ ] Run the complete stack against an isolated PostgreSQL database. **Codex setup**
-- [ ] Add Playwright. **Codex setup**
+- [x] Run the complete stack against an isolated PostgreSQL database for real-outage verification. **Codex**
+- [ ] Compare browser-test approaches and select a framework; Playwright is a candidate. **Pair**
+- [ ] Set up the selected browser-test framework. **Codex setup**
 - [ ] Test playing a game, saving a score, and viewing updated analytics. **David**
 - [ ] Test that the same idempotency key cannot create duplicate scores. **David**
 - [ ] Test a queued score submission across a controlled temporary outage. **David**
@@ -220,10 +226,12 @@ Depends on a coherent full-stack feature flow from Stage 5.
 
 ## Stage 7 — Continuous Integration
 
-Depends on deterministic checks from Stages 4 and 6.
+The initial pipeline uses deterministic Stage 4 checks and PostgreSQL integration
+tests. Browser automation from Stage 6 can be added afterward.
 
-- [ ] Add GitHub Actions for formatting, linting, tests, and builds. **Pair**
-- [ ] Run PostgreSQL integration tests in CI. **David**
+- [x] Add GitHub Actions for formatting, linting, tests, and builds. **Codex**
+- [x] Configure a disposable PostgreSQL service for migrations and integration tests in CI. **Codex**
+- [ ] Push the branch and inspect the first successful GitHub-hosted run together. **Pair**
 - [ ] Run the Playwright smoke suite in CI. **Pair**
 - [ ] Build production Docker images without publishing them. **Codex setup**
 - [ ] Protect the main branch with required checks. **David, repository settings**

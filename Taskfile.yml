@@ -105,7 +105,7 @@ tasks:
       - golangci-lint fmt
 
   backend:format:check:
-    desc: Display Go formatting differences
+    desc: Fail if Go formatting differs without rewriting files
     dir: "{{.BACKEND_DIR}}"
     cmds:
       - golangci-lint fmt --diff
@@ -114,7 +114,7 @@ tasks:
     desc: Run Go static analysis, including formatter checks
     dir: "{{.BACKEND_DIR}}"
     cmds:
-      - golangci-lint run
+      - golangci-lint run --build-tags=integration
 
   backend:test:
     desc: Run all Go tests

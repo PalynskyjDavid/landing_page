@@ -195,14 +195,29 @@ Do not run automatic dependency upgrades or broad `--fix` commands merely to mak
   verified from an empty database.
 - Vitest runs frontend unit tests, including the IndexedDB score outbox and
   reliable-delivery state machine.
-- CI has not been added yet.
+- The first GitHub Actions workflow is implemented in `.github/workflows/ci.yml`.
+  See `docs/ci.md` for its jobs, local equivalents, and first-run walkthrough.
 - Vulnerability remediation is a separate reviewed task; dependency audit results are not automatically modified.
 
 The production dependency audit currently reports no known vulnerabilities
 after a targeted React Router update. Development-only audit findings remain a
 separate review task and were not modified automatically.
 
-## Baseline results (2026-08-27)
+## Current verification (2026-09-06)
+
+- The complete `task check` passes: Go/frontend formatting, lint, unit tests,
+  and production builds. The formatting-only frontend cleanup is a separate commit.
+- Go lint now includes opt-in integration-test code via `--build-tags=integration`.
+- PostgreSQL integration tests pass against a disposable database.
+- Real backend and database outages were verified through the browser, including
+  refresh persistence, automatic recovery, and duplicate-request handling. See
+  `docs/testing/2026-09-06-outage-verification.md` for evidence and limitations.
+- The CI workflow has been statically validated. Its first GitHub-hosted run
+  remains a separate verification after the branch is pushed.
+
+## Historical baseline results (2026-08-27)
+
+The findings below are retained as history, not the current formatting/lint status.
 
 Passing checks:
 
