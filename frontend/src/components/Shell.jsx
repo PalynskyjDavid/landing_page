@@ -1,8 +1,6 @@
 import { Outlet } from "react-router-dom";
-import ThemeSwitch from "../components/ui/ThemeToggleBtn"
-import TopLink from "../components/ui/TopLink"
-
-
+import ThemeSwitch from "../components/ui/ThemeToggleBtn";
+import TopLink from "../components/ui/TopLink";
 
 // function cx(...classes) {
 //     return classes.filter(Boolean).join(" ");
@@ -58,30 +56,31 @@ import TopLink from "../components/ui/TopLink"
 //     );
 // }
 
-
 export default function Shell() {
-    // const { theme, setTheme } = useTheme();
-    // const year = useMemo(() => new Date().getFullYear(), []);
+  // const { theme, setTheme } = useTheme();
+  // const year = useMemo(() => new Date().getFullYear(), []);
 
+  return (
+    <div className="shell-div">
+      <header className="shell-header">
+        <ThemeSwitch>Theme</ThemeSwitch>
 
-    return (
-        <div className="shell-div">
-            <header className="shell-header">
-                <ThemeSwitch>Theme</ThemeSwitch>
+        <nav className="shell-nav">
+          <TopLink to="/" tilt="left">
+            Home
+          </TopLink>
+          <TopLink to="/game" tilt="right">
+            Game
+          </TopLink>
+          <TopLink to="/dev/analytics" tilt="left">
+            Analytics
+          </TopLink>
+        </nav>
+      </header>
 
-                <nav className="shell-nav">
-                    <TopLink to="/" tilt="left">Home</TopLink>
-                    <TopLink to="/game" tilt="right">Game</TopLink>
-                    <TopLink to="/dev/analytics" tilt="left">Analytics</TopLink>
-                </nav>
+      <Outlet />
 
-            </header>
-
-            <Outlet />
-
-            <footer>
-
-            </footer>
-        </div>
-    );
+      <footer></footer>
+    </div>
+  );
 }
