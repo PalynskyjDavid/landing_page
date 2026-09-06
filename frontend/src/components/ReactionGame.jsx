@@ -99,13 +99,18 @@ export default function ReactionGame() {
             <label htmlFor="display-name">Display name (optional)</label>
             <input
               id="display-name"
+              aria-describedby="display-name-help"
               type="text"
               maxLength={24}
               value={displayName}
               disabled={isSavingScore || isScoreQueued || isScoreSaved}
               onChange={(event) => setDisplayName(event.target.value)}
-              placeholder="Anonymous"
+              placeholder="Name or leave blank"
             />
+            <p id="display-name-help" className="text-sm">
+              A name updates all your scores in this browser profile. Leave blank to keep your
+              existing name, or stay Anonymous if you have never set one.
+            </p>
             <button
               type="submit"
               className="ui-btn ui-surface-inverse"

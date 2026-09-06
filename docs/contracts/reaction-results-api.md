@@ -34,6 +34,7 @@ The implementation applies these rules:
 - `times` must contain exactly five positive integer values in milliseconds.
 - `missclicks` must be zero or greater.
 - `displayName` is optional; it is trimmed, an empty value becomes `null`, and its maximum length is 24 characters.
+- A newly saved non-empty name becomes the displayed name on all scores with the same `player_id`. A blank name keeps an existing name; players who have never set one remain Anonymous. Names are not unique and are not authentication.
 - Unknown JSON fields are rejected.
 
 The browser does not send `playerId` in the JSON body. The backend reads it from the `reaction_player_id` cookie so a caller cannot select another player merely by changing the request body. If the cookie is missing or invalid, the backend generates a UUID and returns a one-year, `HttpOnly`, `SameSite=Lax` cookie. Production sets the cookie's `Secure` attribute through `COOKIE_SECURE=true`.
@@ -61,6 +62,13 @@ Content-Type: application/json
 `totalRounds` and `averageMs` in this response are the values calculated and stored by the backend.
 
 Repeating the same `submissionId` with identical normalized score data returns the existing score with `200 OK`. It does not insert another row. Reusing it with different times, missclicks, display name, or player cookie returns `409 Conflict`.
+
+The POST response and retry comparison use the original submitted name, preserved
+in `scores.submitted_display_name`. Leaderboard reads use the current synchronized
+`scores.display_name`. Renaming a player therefore does not break an old retry,
+and replaying an old submission cannot rename the player back. The latest newly
+accepted named submission wins, including a previously queued submission; there
+is no separate profile-edit endpoint or client-side name timestamp yet.
 
 ### Error response
 
@@ -101,7 +109,7 @@ for permanently failed outbox records remain deferred.
 
 `submission_id` and `player_id` are required UUID columns for migrated databases. Existing rows receive generated UUIDs during migration because their original browser and submission identities are unknowable. The older nullable `session_id` column is no longer used and remains only for a later data-retention decision.
 
-The frontend remembers a submitted non-empty display name in browser `localStorage` and pre-fills it for the next game. Clearing the field and saving anonymously removes that stored value. Browser storage is only a convenience; the backend still validates every request.
+The frontend remembers a submitted non-empty display name in browser `localStorage` and pre-fills it for the next game. Clearing the field removes that local suggestion but does not erase the player's existing database name. Browser storage is only a convenience; the backend still validates every request.
 
 The anonymous cookie identifies one browser profile, not a verified person. It can be deleted and does not provide authentication or authorization.
 

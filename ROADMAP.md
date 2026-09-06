@@ -156,6 +156,9 @@ The leaderboard UI now offers Top 5, Top 10, and Top 20 views. Each selection is
 - [x] Store still-pending score submissions in IndexedDB as a domain-specific outbox. See ADR 0002. **Codex**
 - [x] Drain the outbox on application startup, the browser `online` event, and a manual retry action. **Codex**
 - [x] Show queued, sending, saved, and permanently failed states without blocking a new game. **Codex**
+- [x] Add dismissible delivery popups across pages for saving, retries, waiting scores, recovery, and completion; coalesce repeated health probes. **Codex**
+- [x] Add per-tab connection-loss simulation and restore controls, with a persistent banner and recovery after refresh. **Codex**
+- [x] Synchronize player display names using a migration and triggers, preserving original names for idempotent retries; add PostgreSQL integration coverage. **Codex**
 - [ ] Verify that an outage followed by recovery saves exactly one score. **Pair**
 
 The score outbox is intentionally domain-specific. The API client identifies

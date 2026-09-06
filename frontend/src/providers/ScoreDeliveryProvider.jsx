@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { leaderboardKeys } from "../hooks/useLeaderboardQuery.js";
 import { statsKeys } from "../hooks/useStatsQuery.js";
 import { scoreDelivery } from "../services/scoreDelivery.js";
+import { connectionSimulation } from "../lib/connectionSimulation.js";
 import { ScoreDeliveryContext } from "./scoreDeliveryContext.js";
 
 export function ScoreDeliveryProvider({ children }) {
@@ -14,6 +15,15 @@ export function ScoreDeliveryProvider({ children }) {
   );
 
   useEffect(() => {
+    const unsubscribeSimulation = connectionSimulation.subscribe(() => {
+      if (!connectionSimulation.getSnapshot().enabled) {
+        void scoreDelivery.retryNow();
+        void Promise.all([
+          queryClient.invalidateQueries({ queryKey: statsKeys.all }),
+          queryClient.invalidateQueries({ queryKey: leaderboardKeys.all }),
+        ]);
+      }
+    });
     const unsubscribe = scoreDelivery.onDelivered(() => {
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: statsKeys.all }),
@@ -23,6 +33,7 @@ export function ScoreDeliveryProvider({ children }) {
 
     void scoreDelivery.start();
     return () => {
+      unsubscribeSimulation();
       unsubscribe();
       scoreDelivery.stop();
     };

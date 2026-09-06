@@ -128,6 +128,12 @@ tasks:
     cmds:
       - go build -buildvcs=false ./...
 
+  backend:test:integration:
+    desc: Test score name migrations and retries in an isolated PostgreSQL test schema
+    dotenv: [".env"]
+    cmds:
+      - go -C "{{.BACKEND_DIR}}" test -tags=integration -count=1 -v ./internal/games/reaction/results
+
   frontend:format:
     desc: Rewrite frontend files with Prettier
     dir: "{{.FRONTEND_DIR}}"

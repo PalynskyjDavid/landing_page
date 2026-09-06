@@ -6,7 +6,8 @@ SELECT
     average_ms,
     submission_id::text,
     player_id::text,
-    display_name,
+    -- A replay returns the original submitted name, not the mutable leaderboard name.
+    submitted_display_name AS display_name,
     created_at
 FROM scores
 WHERE submission_id = @submission_id;

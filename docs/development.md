@@ -101,6 +101,73 @@ Tern stores each migration in one numbered SQL file. SQL above
 that migration back. The backend does not migrate automatically at startup:
 schema changes remain an explicit development and deployment step.
 
+### Player-name synchronization (migration 006)
+
+Run `task db:migrate` and restart the Go backend after pulling this slice: the
+idempotency lookup now requires `submitted_display_name`. Deploy the migration
+and backend together; an older running backend compares against the mutable name.
+
+The migration preserves each score's original submitted name, then backfills all
+scores for a player from that player's latest named score (`created_at`, then
+`id`). Future inserts capture the original name in a BEFORE trigger and synchronize
+the displayed name in an AFTER trigger. Only inserts trigger synchronization;
+editing a row manually in pgAdmin is not a supported profile-update operation.
+A blank name inherits an existing name, and a replay cannot change any names.
+
+To inspect a player in pgAdmin:
+
+```sql
+SELECT id, player_id, display_name, submitted_display_name, created_at
+FROM scores
+WHERE player_id = '7106fc1f-c70d-4735-a14b-c013b96e5c84'
+ORDER BY created_at, id;
+```
+
+Run the real PostgreSQL tests with the local database running:
+
+```powershell
+task backend:test:integration
+```
+
+These opt-in Go tests use `DATABASE_URL` from `.env`, create a randomly named
+`score_names_test_...` schema, and remove only that schema during cleanup. They
+do not migrate or change `public.scores` or the application's schema version.
+The database role needs permission to create schemas. Tests cover backfill,
+renames, blank names, player isolation, duplicate/conflicting retries, concurrent
+inserts, and migration down/up. Rolling migration 006 down restores each score's
+original submitted name; no scores are deleted.
+
+The tradeoff is that a rename updates multiple score rows. For a larger app,
+a separate players table joined by the leaderboard would avoid this duplication.
+PostgreSQL's [trigger documentation](https://www.postgresql.org/docs/16/trigger-definition.html)
+explains why the row-level AFTER trigger does not run for a skipped duplicate insert.
+
+## Connection-loss demonstration
+
+On the Game page, the **Reliability lab** provides **Simulate connection loss**
+and **Restore connection** buttons. While enabled, the API client blocks this
+tab's API calls (including readiness checks) and aborts any in-flight calls.
+Requests already received by the server cannot be undone; score idempotency
+handles a retry when the original response was lost.
+
+The switch uses sessionStorage, so it survives refreshes in the same tab and
+does not broadcast changes to other tabs. If sessionStorage is unavailable,
+the panel reports that the switch cannot survive refresh. The score outbox
+continues to use IndexedDB. Browser storage remains scoped to the frontend
+origin; use the same browser profile and frontend address throughout the demo.
+
+1. Start the backend, PostgreSQL and frontend, and open the Game page.
+2. Click **Simulate connection loss**, play a game and click **Save score**.
+3. Observe the retry popup followed by **Scores saved for later**.
+4. Refresh: both the simulation banner and queued score should remain.
+5. Click **Restore connection**. The app checks readiness, drains waiting scores,
+   and refreshes its leaderboard queries. If the real API is unavailable, scores
+   remain queued until it recovers.
+
+The banner also offers Restore on other pages. This simulation does not change
+Wi-Fi, Docker, the database, or the computer's internet connection. It tests the
+client's recovery behavior; a real container outage remains a separate test.
+
 ## Tool responsibilities
 
 - `.editorconfig` supplies basic encoding, newline, and indentation conventions to compatible editors.

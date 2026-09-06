@@ -221,24 +221,27 @@ export function createScoreDelivery({
     return drainPromise;
   }
 
-  async function retryNow() {
-    if (!started || probePromise) {
-      return probePromise;
-    }
+  function retryNow() {
+    if (!started) return Promise.resolve();
+    if (probePromise || drainPromise) return probePromise ?? drainPromise;
 
+    // Claim the operation before the first await. Restore, online, startup and
+    // manual retry can arrive together; they should share one recovery attempt.
     clearProbeTimer();
-    const entries = await refreshPendingCount();
-    if (entries.length === 0) {
-      publish({ availability: "healthy" });
-      return undefined;
-    }
-
-    publish({ availability: "checking", systemError: null });
-    probePromise = checkReadiness()
-      .then(() => {
+    probePromise = (async () => {
+      const entries = await refreshPendingCount();
+      if (!started) return;
+      if (entries.length === 0) {
+        publish({ availability: "healthy", systemError: null });
+        return;
+      }
+      publish({ availability: "checking", systemError: null });
+      await checkReadiness();
+      if (started) {
         publish({ availability: "recovering" });
-        return drain({ recovering: true });
-      })
+        await drain({ recovering: true });
+      }
+    })()
       .catch((error) => {
         publish({
           availability: "unavailable",

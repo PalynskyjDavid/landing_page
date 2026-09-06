@@ -1,3 +1,5 @@
+import { connectionSimulation } from "./connectionSimulation.js";
+
 const DEFAULT_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 const DEFAULT_TIMEOUT_MS = 10000;
 
@@ -52,6 +54,7 @@ function mergeSignals(timeoutMs, signal) {
 
   return {
     signal: controller.signal,
+    abort: (reason) => controller.abort(reason),
     cleanup() {
       clearTimeout(timeoutId);
 
@@ -131,11 +134,27 @@ export async function request({
   const url = buildUrl(path, params);
   const requestMethod = method.toUpperCase();
   const body = data === undefined ? undefined : JSON.stringify(data);
-  const { signal: mergedSignal, cleanup } = mergeSignals(timeoutMs, signal);
+  const { signal: mergedSignal, cleanup, abort } = mergeSignals(timeoutMs, signal);
+
+  const simulateConnectionLoss = () => {
+    if (connectionSimulation.getSnapshot().enabled) {
+      abort(
+        new ApiClientError("Connection loss simulation is active in this tab.", {
+          code: "simulated_connection_loss",
+          isRetryable: true,
+          url,
+          method: requestMethod,
+        }),
+      );
+    }
+  };
+  const unsubscribeSimulation = connectionSimulation.subscribe(simulateConnectionLoss);
 
   clientHooks.onRequest?.({ method: requestMethod, url, params, data });
 
   try {
+    simulateConnectionLoss();
+    mergedSignal.throwIfAborted();
     const response = await fetch(url, {
       method: requestMethod,
       credentials: "include",
@@ -149,6 +168,7 @@ export async function request({
     });
 
     const payload = await parseResponseBody(response);
+    mergedSignal.throwIfAborted();
 
     if (!response.ok) {
       throw normalizeError({ response, payload, url, method: requestMethod });
@@ -163,10 +183,13 @@ export async function request({
 
     return payload;
   } catch (error) {
-    const normalizedError = normalizeError({ error, url, method: requestMethod });
+    const failure =
+      mergedSignal.reason?.code === "simulated_connection_loss" ? mergedSignal.reason : error;
+    const normalizedError = normalizeError({ error: failure, url, method: requestMethod });
     clientHooks.onError?.({ method: requestMethod, url, error: normalizedError });
     throw normalizedError;
   } finally {
+    unsubscribeSimulation();
     cleanup();
   }
 }

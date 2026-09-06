@@ -1,0 +1,85 @@
+.connection-lab {
+  width: 98%;
+  max-width: 600px;
+  margin: 1rem auto;
+  padding: 1rem;
+  border: 1px solid rgb(var(--border) / 0.25);
+  border-radius: 12px;
+  background: rgb(var(--fg) / 0.03);
+}
+
+.connection-lab-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.connection-lab-heading h2 {
+  font-weight: 600;
+}
+.connection-lab-state {
+  font-size: 0.8rem;
+  color: rgb(var(--muted-fg));
+}
+.connection-lab-state[data-active="true"] {
+  color: #92400e;
+  font-weight: 600;
+}
+.dark .connection-lab-state[data-active="true"] {
+  color: #fcd34d;
+}
+.connection-lab p {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.connection-lab-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0 0.75rem;
+}
+.connection-lab-actions button {
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.connection-lab-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.connection-lab .connection-lab-note {
+  font-size: 0.8rem;
+}
+
+.connection-simulation-banner {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #fef3c7;
+  border-bottom: 1px solid #d97706;
+  color: #78350f;
+}
+.connection-simulation-banner p {
+  color: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.connection-simulation-banner button,
+.connection-simulation-banner button:hover {
+  color: inherit;
+  border-color: currentColor;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.dark .connection-simulation-banner {
+  background: #451a03;
+  color: #fde68a;
+}
