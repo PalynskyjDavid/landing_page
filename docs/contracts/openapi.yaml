@@ -1,0 +1,362 @@
+openapi: 3.0.3
+info:
+  title: Landing Page Reaction API
+  version: 1.0.0
+  description: |
+    Contract for the canonical my-backend Go API. Scores are unverified,
+    client-reported measurements, not cheat-proof rankings.
+    Anonymous cookies identify browser profiles; they are not authentication.
+    Statistics, events, authentication, and profile-edit endpoints are not
+    implemented and are deliberately absent.
+servers:
+  - url: /
+    description: Same API origin; local ports depend on development or E2E config.
+tags:
+  - name: Scores
+  - name: Health
+paths:
+  /scores:
+    post:
+      operationId: createScore
+      tags: [Scores]
+      summary: Save a five-round game, or replay an identical submission
+      description: |
+        Generate submissionId once per finished game and reuse it on every retry.
+        An identical normalized payload from the same player returns 200 and the
+        same database ID. Changed data or a different player returns 409.
+        The server calculates averageMs with integer division (rounding down).
+        A new nonblank name updates leaderboard names for the same player.
+        A replay uses the original submitted name, not the current leaderboard name.
+      parameters:
+        - $ref: "#/components/parameters/AnonymousPlayer"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScore"
+            example:
+              submissionId: 550e8400-e29b-41d4-a716-446655440000
+              times: [241, 228, 255, 249, 235]
+              missclicks: 1
+              displayName: David
+      responses:
+        "201":
+          description: A new score was stored.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/AnonymousPlayer"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedScore"
+        "200":
+          description: Identical submission already exists; no new score was inserted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedScore"
+        "400":
+          description: |
+            Invalid input. Codes: invalid_json, score_invalid_submission_id,
+            score_invalid_round_count, score_invalid_time, score_invalid_missclicks,
+            score_display_name_too_long.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: submissionId belongs to different score data or another player.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: score_submission_conflict
+                  message: submissionId was already used for different score data.
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /scores/leaderboard:
+    get:
+      operationId: listLeaderboard
+      tags: [Scores]
+      summary: Read the top scores in a selected order
+      description: |
+        Lower values are better for every supported column. Ranks describe this
+        ordered response, not a permanent player ranking. The same player can
+        have multiple entries. Remaining ties use createdAt ASC, then scoreId ASC.
+      parameters:
+        - $ref: "#/components/parameters/AnonymousPlayer"
+        - name: limit
+          in: query
+          description: Maximum entries; omitted or empty uses 10.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+        - name: sort
+          in: query
+          description: |
+            One or two comma-separated, distinct field:direction pairs.
+            Fields are averageMs, bestMs, missclicks. Directions are best (ASC)
+            and worst (DESC); an omitted direction means best.
+            Omitted or empty sort means averageMs:best,missclicks:best.
+            A single field adds missclicks:best as secondary, except missclicks
+            itself adds averageMs:best. Whitespace around each pair is trimmed.
+            Duplicate fields, unknown fields/directions, and more than two pairs
+            return score_invalid_sort. These combination rules are service validation.
+          schema:
+            type: string
+            default: averageMs:best,missclicks:best
+          example: bestMs:worst,missclicks:best
+      responses:
+        "200":
+          description: Ordered scores; entries is an empty array when no scores exist.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/AnonymousPlayer"
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [entries]
+                properties:
+                  entries:
+                    type: array
+                    maxItems: 50
+                    items:
+                      $ref: "#/components/schemas/LeaderboardEntry"
+        "400":
+          description: Invalid query; code is score_invalid_limit or score_invalid_sort.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /health:
+    get:
+      operationId: getHealth
+      tags: [Health]
+      summary: Compatibility alias for /health/live
+      responses:
+        "200":
+          $ref: "#/components/responses/Alive"
+  /health/live:
+    get:
+      operationId: getLiveness
+      tags: [Health]
+      summary: Check that the API process responds; does not query PostgreSQL
+      responses:
+        "200":
+          $ref: "#/components/responses/Alive"
+  /health/ready:
+    get:
+      operationId: getReadiness
+      tags: [Health]
+      summary: Check whether the API can reach PostgreSQL
+      description: |
+        Pings PostgreSQL with a one-second timeout. This is a connectivity probe,
+        not proof that migrations are current or that every request will succeed.
+        Health responses use Cache-Control no-store and do not issue player cookies.
+      responses:
+        "200":
+          description: Database connection is available.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status, dependencies]
+                properties:
+                  status:
+                    type: string
+                    enum: [ready]
+                  dependencies:
+                    type: object
+                    additionalProperties: false
+                    required: [database]
+                    properties:
+                      database:
+                        type: string
+                        enum: [available]
+        "503":
+          description: Database is unavailable or its connectivity check timed out.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status, dependencies]
+                properties:
+                  status:
+                    type: string
+                    enum: [not_ready]
+                  dependencies:
+                    type: object
+                    additionalProperties: false
+                    required: [database]
+                    properties:
+                      database:
+                        type: string
+                        enum: [unavailable]
+components:
+  parameters:
+    AnonymousPlayer:
+      name: reaction_player_id
+      in: cookie
+      required: false
+      description: |
+        Server-issued browser identity. Missing or malformed values are replaced.
+        Preserve the cookie when retrying a submission. This is not a login or
+        authorization credential: a caller can edit it. Use credentials include
+        for cross-origin browser calls to the configured allowed frontend origin.
+      schema:
+        type: string
+  headers:
+    AnonymousPlayer:
+      description: |
+        Issued if the player cookie is missing or invalid, including on some error
+        responses. Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax.
+        Secure is added when COOKIE_SECURE=true. Browsers manage this header.
+      schema:
+        type: string
+  responses:
+    InternalError:
+      description: |
+        Unexpected server/storage failure. Codes can include internal_error,
+        result_insert_failed, result_idempotency_lookup_failed,
+        leaderboard_query_failed, and player_id_generation_failed.
+        Error messages do not contain raw database errors. Retry policy uses status,
+        not an assumption that every 500 has the same code.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Alive:
+      description: API process is responding; Cache-Control is no-store.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [status, service]
+            properties:
+              status:
+                type: string
+                enum: [alive]
+              service:
+                type: string
+                enum: [my-backend]
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+      pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+      description: Hyphenated UUID; uppercase input is normalized to lowercase.
+    CreateScore:
+      type: object
+      additionalProperties: false
+      required: [submissionId, times]
+      properties:
+        submissionId:
+          $ref: "#/components/schemas/UUID"
+        times:
+          type: array
+          minItems: 5
+          maxItems: 5
+          items:
+            type: integer
+            minimum: 1
+          description: Five positive integer reaction times, in milliseconds.
+        missclicks:
+          type: integer
+          minimum: 0
+          nullable: true
+          default: 0
+          description: Premature clicks. Omitted or null currently decodes to zero.
+        displayName:
+          type: string
+          nullable: true
+          description: |
+            Optional. Unicode whitespace is trimmed before validation. Empty,
+            blank, null, and omitted mean no submitted name. At most 24 Unicode
+            code points AFTER trimming; this normalized limit is checked by the
+            service, not maxLength on the untrimmed JSON string.
+    SavedScore:
+      type: object
+      additionalProperties: false
+      required: [id, submissionId, totalRounds, averageMs, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        submissionId:
+          $ref: "#/components/schemas/UUID"
+        totalRounds:
+          type: integer
+          enum: [5]
+        averageMs:
+          type: integer
+          minimum: 1
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 24
+          description: Original trimmed submitted name. Omitted (not null) if absent.
+        createdAt:
+          type: string
+          format: date-time
+    LeaderboardEntry:
+      type: object
+      additionalProperties: false
+      required: [rank, scoreId, averageMs, bestMs, totalRounds, missclicks, createdAt]
+      properties:
+        rank:
+          type: integer
+          minimum: 1
+          maximum: 50
+        scoreId:
+          type: integer
+          format: int64
+          minimum: 1
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 24
+          description: Current player name. Omitted when unknown; frontend shows Anonymous.
+        averageMs:
+          type: integer
+          minimum: 1
+        bestMs:
+          type: integer
+          minimum: 1
+        totalRounds:
+          type: integer
+          enum: [5]
+        missclicks:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              minLength: 1
+            message:
+              type: string
+              minLength: 1

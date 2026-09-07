@@ -98,7 +98,7 @@ func (h *Handler) handleLeaderboard(w http.ResponseWriter, r *http.Request) {
 	options := LeaderboardOptions{}
 	if rawLimit := r.URL.Query().Get("limit"); rawLimit != "" {
 		parsedLimit, err := strconv.Atoi(rawLimit)
-		if err != nil {
+		if err != nil || parsedLimit < 1 || parsedLimit > maxLeaderboardLimit {
 			httpapi.WriteError(w, h.logger, apperror.BadRequest("score_invalid_limit", "limit must be between 1 and 50.", err))
 			return
 		}

@@ -1,14 +1,16 @@
 # Reaction Results API Contract
 
-- Status: Draft
-- Date: 2026-09-03
+- Status: Implemented score/leaderboard contract, with deferred work listed below
+- Updated: 2026-09-08
 - Canonical implementation: `my-backend`
 
 ## Purpose
 
 This document is the shared boundary between the React frontend and Go backend for saving reaction-game results and reading a leaderboard. It lets either side build against agreed examples before the other side is complete.
 
-This is a design contract, not yet an OpenAPI specification. Items marked **Open decision** must be agreed before the affected endpoint is stable.
+The machine-readable HTTP contract is now [openapi.yaml](openapi.yaml). This
+document explains the behavior; keep both in sync when changing the API.
+See [the contract guide](README.md) and run `task api:check` to verify it.
 
 ## Score submission
 
@@ -32,7 +34,7 @@ The implementation applies these rules:
 
 - `submissionId` is a required UUID generated once for each completed game by the client. Every retry of that score reuses the same value.
 - `times` must contain exactly five positive integer values in milliseconds.
-- `missclicks` must be zero or greater.
+- `missclicks` must be zero or greater; omitted or JSON `null` currently decodes to zero.
 - `displayName` is optional; it is trimmed, an empty value becomes `null`, and its maximum length is 24 characters.
 - A newly saved non-empty name becomes the displayed name on all scores with the same `player_id`. A blank name keeps an existing name; players who have never set one remain Anonymous. Names are not unique and are not authentication.
 - Unknown JSON fields are rejected.
@@ -91,7 +93,10 @@ is no separate profile-edit endpoint or client-side name timestamp yet.
 | `400`       | `score_display_name_too_long` | Trimmed `displayName` is longer than 24 characters.                                      |
 | `409`       | `score_submission_conflict`   | `submissionId` already belongs to different normalized score data or a different player. |
 
-Unexpected failures use status `500`, code `internal_error`, and do not expose internal details.
+Unexpected failures use status `500` and do not expose raw internal details.
+Unclassified errors use `internal_error`; repository errors can have more specific
+codes such as `result_insert_failed` or `leaderboard_query_failed`. Retry policy
+must not assume every `500` has the same code.
 
 ## Reliable client delivery
 

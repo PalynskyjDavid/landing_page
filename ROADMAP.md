@@ -2,30 +2,53 @@
 
 This roadmap is both the project TODO list and the working agreement for learning-oriented development.
 
-Current focus (2026-09-07): David confirmed the first hosted CI run succeeded for
-`b7857ff`. David enabled and ran all four Playwright scenarios: save/reload,
-idempotency, simulated API-loss recovery, and invalid input. The isolated
-test-database lifecycle is verified locally. The E2E CI job and seven-day report
-uploads are now configured. Next: review/push these changes and verify the first
-hosted E2E run; saving an anonymous score remains an optional manual exercise.
-Checkpoint checks passed: `task check` (including 21 Vitest tests and both builds)
-and all four scenarios via `task test:e2e KEEP_TEST_DB=true`.
-See `docs/testing/e2e.md` and `docs/ci.md`.
+Current focus (2026-09-08): Fix the first hosted E2E startup failure and establish
+the machine-readable API contract. TCP PostgreSQL health checks and failure
+diagnostics are implemented; three fresh migration cycles and all four browser
+scenarios passed locally. OpenAPI now documents the five implemented operations,
+with route/HTTP-response contract checks included in normal Go tests.
+The full quality gate, PostgreSQL integration tests, and final four-scenario
+browser run (50.8 seconds) passed locally. Changes have not been committed/pushed.
+Next: push/review the hosted CI result, then automate a real database-outage/recovery
+browser scenario. See `docs/testing/e2e.md`,
+`docs/ci.md`, and `docs/contracts/README.md`.
 
 ## How we will work
 
-- David chooses which implementation tasks he wants to write manually.
+- Codex now implements the next bounded roadmap slices by default, as David requested.
+- Codex announces new concepts/tools or interesting design changes while working,
+  so David can pause to inspect code or ask questions without following every edit.
+- David can reserve any task for manual implementation; existing manual work is preserved.
 - Before coding starts, we define the task, constraints, acceptance criteria, and relevant tests.
 - Codex reviews the resulting diff and explains issues, tradeoffs, and possible improvements.
 - Codex does not rewrite David's manual work unless explicitly asked to implement a fix.
 - Large changes are split into reviewable tasks that can normally be completed in one focused session.
 - At the end of each task, this roadmap is updated and the next one or two tasks are prepared.
+- Deployment, spending, access changes, and destructive actions outside disposable
+  test data require an explicit decision; development autonomy does not imply them.
 
 ### Ownership labels
 
 - **David** — intended as a manual learning task.
 - **Codex** — setup, repetitive infrastructure work, or work explicitly delegated to Codex.
 - **Pair** — design together; David implements; Codex reviews and verifies.
+
+Older ownership labels record the original learning plan; unless David reserves
+a task, the implementation-first agreement above now applies.
+
+### Next prepared slice: real database outage
+
+- **Outcome:** prove pending scores recover when PostgreSQL really stops, not just
+  when the browser's connection simulator rejects a request.
+- **Scope:** one Playwright scenario using only the owned E2E database and existing
+  lifecycle/lock helpers. Do not expose a public stop-database API.
+- **Acceptance:** liveness stays 200 while readiness becomes 503; a submitted score
+  queues; restarting the same database without resetting its data restores readiness;
+  the pending submission is stored exactly once and appears after a page reload.
+- **Safety:** restore the test database in a `finally` block even when assertions
+  fail; preserve normal wrapper cleanup and never target the development container.
+- **Verification:** run the scenario alone, then the full browser suite to catch
+  leaked outage state; keep database/schema migrations unchanged.
 
 ### Task lifecycle
 
@@ -142,12 +165,15 @@ Depends on Stages 1 and 2.
 - [x] Define client-generated idempotency keys and duplicate-submission behavior. **Pair**
 - [x] Distinguish backend liveness from database-dependent readiness. See ADR 0002. **Pair**
 - [ ] Specify API requests, responses, validation errors, and status codes. **David**
-- [ ] Introduce an OpenAPI document. **David**
+- [x] Introduce OpenAPI for implemented scores, leaderboard, and health endpoints;
+  validate routes and real HTTP responses in `task api:check` and normal Go tests. **Codex**
 - [ ] Decide whether to generate Go server types and frontend client types. **Pair**
 - [ ] Define migration ownership and compatibility rules. **Pair**
 - [ ] Remove or implement orphaned frontend calls such as `/events`. **David**
 
-The first draft contract is recorded in `docs/contracts/reaction-results-api.md`. It separates the currently implemented score submission from proposed leaderboard and identity changes; open decisions must be resolved before it is promoted to OpenAPI.
+The behavior guide is `docs/contracts/reaction-results-api.md`; the machine-readable
+contract is `docs/contracts/openapi.yaml`. Deferred statistics/authentication/profile
+features are not advertised as implemented endpoints.
 
 The score-correctness slice now fixes a completed game at five rounds. The backend validates the five raw reaction times and derives both `totalRounds` and the rounded-down `averageMs`.
 
@@ -230,7 +256,8 @@ Depends on a coherent full-stack feature flow from Stage 5.
 - [x] Test that identical submissions reuse a score and changed data with the same UUID returns a conflict. **Pair**
 - [x] Test that a queued score survives reload during simulated API loss and saves once after recovery. **Pair**
 - [x] Test invalid API inputs, error codes, and absence of stored scores. **Pair**
-- [ ] Make E2E setup-failure messages distinguish requested keep mode from a successfully started database. **Codex**
+- [x] Distinguish requested keep mode from successful setup and print database logs before failure cleanup. **Codex**
+- [x] Wait for PostgreSQL TCP readiness and verify repeated empty-volume startup/migration cycles. **Codex**
 - [ ] Automate real backend/database outages and unavailable-service recovery in Playwright. **David**
 - [ ] Define a small production smoke-test suite. **Pair**
 
@@ -244,7 +271,8 @@ tests. Browser automation from Stage 6 can be added afterward.
 - [x] Push the branch and inspect the first successful GitHub-hosted run together; David reported success for `b7857ff`. **Pair**
 - [x] Update setup-go and setup-task action pins to verified Node 24-compatible releases. **Codex**
 - [x] Configure the four-scenario Playwright CI job with seven-day report/failure artifact uploads. **Codex**
-- [ ] Push and verify the first hosted E2E run, then download and inspect its report together. **Pair**
+- [ ] Push the startup fix and verify a successful hosted E2E run, then inspect its report.
+  First run `34161440677` failed before Playwright during database startup. **Pair**
 - [ ] Build production Docker images without publishing them. **Codex setup**
 - [ ] Protect the main branch with required checks. **David, repository settings**
 

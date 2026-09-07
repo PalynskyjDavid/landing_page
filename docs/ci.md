@@ -7,7 +7,7 @@ locally against its own disposable database.
 
 ## What runs
 
-Once this workflow change is pushed, pushes and pull requests start three
+Pushes and pull requests start three
 independent jobs on Ubuntu 24.04:
 
 1. **Formatting, lint, unit tests, and builds** installs the pinned tools and
@@ -18,6 +18,10 @@ independent jobs on Ubuntu 24.04:
 3. **Playwright end-to-end tests** installs Go, Node.js, Task, frontend dependencies,
    and Chromium with its Linux libraries. It runs `task test:e2e KEEP_TEST_DB=false`,
    then uploads the report and available failure evidence.
+
+The quality job also checks `docs/contracts/openapi.yaml` against real HTTP
+handler responses through the regular Go tests. `task api:check` runs just these
+contract checks locally.
 
 The jobs can run in parallel; none needs another job's outputs. Steps inside
 each job run in order; normal steps stop on failure, but the E2E artifact step
@@ -85,8 +89,8 @@ the initial feature-branch run is triggered by its push. See GitHub's
 
 Branch protection and required checks are deliberately not changed here. We
 will choose them after seeing a successful hosted run. Image builds and
-deployment remain deferred. The E2E job has been configured locally; its
-first GitHub-hosted run must still be verified after pushing.
+deployment remain deferred. The first E2E hosted run failed during database
+initialization; see the diagnosis and pending verification below.
 
 ## Download a replay after a failure
 
@@ -143,6 +147,30 @@ The third command instead manages and resets the dedicated E2E database. See
 - With `CI=true`, `task test:e2e KEEP_TEST_DB=true` passed all four scenarios in
   54.8 seconds and generated the HTML report. Keep mode preserved the developer's
   isolated test container; the workflow explicitly uses `KEEP_TEST_DB=false`.
-- The Ubuntu browser/library installation, action execution, and artifact upload
+- At this checkpoint the Ubuntu browser/library installation, action execution, and artifact upload
   have not run on GitHub yet. Commit/push and inspect that hosted run before
   considering the CI rollout verified.
+
+## First hosted failure and fix (2026-09-08)
+
+[Run 34161440677](https://github.com/PalynskyjDavid/landing_page/actions/runs/34161440677)
+at `409aca1` passed quality and PostgreSQL integration checks. E2E reached database
+setup but the first migration connection to port 5547 failed with
+`connection reset by peer`. Playwright had not started, so no browser report existed.
+
+The likely cause was the socket-only `pg_isready` health check accepting
+PostgreSQL's temporary initialization server. Both test health checks now use
+`-h 127.0.0.1 -p 5432` to wait for the final TCP server. The E2E wrapper prints
+database logs before cleanup on failures, including failures before browser startup.
+Log/cleanup errors no longer replace the original failure.
+
+Local verification passed three empty-volume migration cycles and a fourth fresh
+start running all four browser scenarios with `CI=true`. This is local Windows
+verification; a successful GitHub-hosted run of this fix is still pending push.
+
+After the OpenAPI slice, `task check`, PostgreSQL integration tests, actionlint,
+and another fresh-start browser run all passed (four scenarios, 50.8 seconds).
+The changes remain local and uncommitted; no hosted success is claimed for them.
+
+See the official [PostgreSQL image entrypoint](https://github.com/docker-library/postgres/blob/master/docker-entrypoint.sh)
+and [pg_isready options](https://www.postgresql.org/docs/current/app-pg-isready.html).

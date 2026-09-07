@@ -50,10 +50,14 @@ task test:e2e KEEP_TEST_DB=true -- --ui
 - Cleanup is in a JavaScript `finally` block, so a nonzero test exit still cleans
   up. A force-killed process or computer shutdown cannot guarantee cleanup: use
   `task test:db:down` afterward.
+- Failed setup/build/test runs print recent PostgreSQL logs before cleanup.
+  If Docker itself is unavailable, log capture may also fail; the original
+  failure is still reported. Keep mode does not claim setup succeeded when it did not.
 - `task check` remains the quick, Docker-independent gate. E2E tests are separate
   from Vitest and now have their own job in `.github/workflows/ci.yml`. The job
   runs headlessly with cleanup enabled and uploads reports for seven days; see
-  `docs/ci.md`. Its first hosted run remains to be verified after pushing.
+  `docs/ci.md`. The first hosted E2E run failed during database initialization;
+  the TCP-readiness fix still needs a new hosted run after pushing.
 
 Read the last browser report with:
 
@@ -75,6 +79,10 @@ replace them, so save important evidence before rerunning.
 | `test:db:stop` | Stop the container; retain its data volume. |
 | `test:db:down` | Remove the test container and its disposable data volume. |
 | `test:db:status` / `test:db:logs` | Inspect test container status/logs. |
+
+The health check explicitly uses TCP on container port 5432. PostgreSQL's
+initialization server accepts Unix-socket connections before its final TCP server
+starts; a socket-only health check can therefore allow migrations to start too early.
 
 The baseline currently means zero scores and one zeroed `stats_summary` row.
 Shared seed data can be added to `baseline.sql`. A test that starts with an empty
@@ -223,8 +231,23 @@ The existing npm audit findings (10 total) were not changed by this setup.
 - The retained database was healthy on `127.0.0.1:5547`, at schema version 6,
   with zero scores and zero total games after the final invalid-input test.
   The test database lock and API/frontend listeners were gone after completion.
-- The runner still prints a keep-mode message if setup fails before the database
+- At that checkpoint the runner still printed a keep-mode message if setup failed before the database
   starts; that message alone is not proof the database is available. Check Docker
-  status when setup fails. Improving that diagnostic remains follow-up work.
+  status when setup fails. The 2026-09-08 change below fixes this diagnostic.
 - At this checkpoint, browser execution was still local only. The subsequent CI
   configuration and its verification status are recorded in `docs/ci.md`.
+
+## Cold-start reliability fix (2026-09-08, Windows)
+
+- E2E Compose and the CI integration service now check PostgreSQL over TCP.
+- Three consecutive empty-volume setup/migration/cleanup cycles passed.
+- A fourth empty-volume start passed all four browser scenarios with `CI=true`
+  in 53.1 seconds; normal cleanup removed the disposable database afterward.
+- Eight new runner unit tests cover failure logs before cleanup, preservation of
+  the original error/nonzero exit, cleanup failures, and accurate keep-mode messages.
+- The development database was not reset or removed. These local checks do not
+  substitute for a successful GitHub-hosted run of the fix.
+- Final verification after adding OpenAPI: `task check` passed (29 Vitest tests,
+  Go tests including contract checks, formatting/lint, and both builds). PostgreSQL
+  integration tests passed against the disposable E2E database. A final fresh-start
+  browser run passed all four scenarios in 50.8 seconds and removed its test volume.

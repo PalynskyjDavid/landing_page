@@ -30,7 +30,8 @@ func (r *fakeRepository) ListLeaderboard(_ context.Context, params LeaderboardPa
 		return nil, r.leaderboardErr
 	}
 
-	return append([]LeaderboardEntry(nil), r.entries...), nil
+	// The real adapter returns [] rather than null for an empty leaderboard.
+	return append([]LeaderboardEntry{}, r.entries...), nil
 }
 
 func (r *fakeRepository) Create(_ context.Context, params CreateParams) (*Result, bool, error) {

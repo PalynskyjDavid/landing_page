@@ -170,6 +170,11 @@ tasks:
     cmds:
       - go test ./...
 
+  api:check:
+    desc: Validate OpenAPI and check real HTTP handler responses against the contract
+    cmds:
+      - go -C "{{.BACKEND_DIR}}" test -count=1 -run TestOpenAPI -v ./internal/games/reaction/results
+
   backend:build:
     desc: Compile the Go API without writing a repository binary
     dir: "{{.BACKEND_DIR}}"
