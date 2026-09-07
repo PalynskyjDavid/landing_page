@@ -1,32 +1,51 @@
-# First CI pipeline
+# CI pipeline
 
 The workflow lives in `.github/workflows/ci.yml`. This is continuous integration:
 it checks changes, but does not deploy the app, publish images, or modify your
-database. End-to-end browser automation is a separate next slice.
+development database. The E2E job runs the same four Playwright scenarios used
+locally against its own disposable database.
 
 ## What runs
 
-Pushes and pull requests start two independent jobs on Ubuntu 24.04:
+Once this workflow change is pushed, pushes and pull requests start three
+independent jobs on Ubuntu 24.04:
 
 1. **Formatting, lint, unit tests, and builds** installs the pinned tools and
    locked frontend dependencies, then runs the same `task check` used locally.
 2. **PostgreSQL migrations and integration tests** starts a fresh PostgreSQL 16
    service, applies every migration, runs migration again to check the no-op
    path, reports the schema version, and runs `task backend:test:integration`.
+3. **Playwright end-to-end tests** installs Go, Node.js, Task, frontend dependencies,
+   and Chromium with its Linux libraries. It runs `task test:e2e KEEP_TEST_DB=false`,
+   then uploads the report and available failure evidence.
 
-The jobs can run in parallel; neither needs the other's outputs. Steps inside
-each job run in order and stop on failure. Each job has a 15-minute timeout.
+The jobs can run in parallel; none needs another job's outputs. Steps inside
+each job run in order; normal steps stop on failure, but the E2E artifact step
+also runs after a failure unless the workflow was cancelled. Each job has a
+15-minute timeout.
 A newer run for the same branch or pull request cancels its older unfinished run.
 
-GitHub supplies and removes the PostgreSQL service for that job. The credentials
-in the YAML are disposable test values, not production secrets. Nothing connects
-to the PostgreSQL container on your computer. See GitHub's
+GitHub supplies and removes the PostgreSQL service for the integration job. The
+credentials in the YAML are disposable test values, not production secrets.
+Nothing connects to the PostgreSQL container on your computer. See GitHub's
 [PostgreSQL service-container guide](https://docs.github.com/en/actions/tutorials/use-containerized-services/create-postgresql-service-containers).
+
+The E2E job is a separate runner. It uses Docker Compose via `task test:e2e` to
+create its own PostgreSQL container, apply migrations, reset data, build the Go
+API, and start the API/frontend. Tests run headlessly with one worker. The wrapper
+removes the test database afterward, and GitHub discards the runner at job end.
+No Docker Desktop, pgAdmin, repository secrets, or deployed server is needed on
+the hosted runner. The `postgres` job's service is not shared with the E2E job.
 
 ## How the files connect
 
 - `ci.yml` describes the runner, tools, service database, and order of steps.
 - `Taskfile.yml` owns the actual project check commands.
+- `test:e2e:install` forwards arguments, so CI can use
+  `task test:e2e:install -- --with-deps` to install Chromium's Linux dependencies.
+- `frontend/scripts/test-e2e.js` owns the E2E lifecycle and calls Playwright.
+- `frontend/playwright.config.js` owns browsers, server startup, and reporting;
+  `compose.e2e.yml` and `frontend/e2e/baseline.sql` define the isolated database.
 - `my-backend/go.mod` selects Go; `.nvmrc` selects Node.js.
 - `frontend/package-lock.json` makes `npm ci` install the recorded dependencies.
 - Task 3.53.1 and golangci-lint 2.13.1 match the documented local versions.
@@ -36,10 +55,19 @@ to the PostgreSQL container on your computer. See GitHub's
 The external actions are pinned to full commit IDs. The comments beside them
 show the corresponding release tags. Update a pin only after checking its
 official release, and keep local tool versions and this document consistent.
+The setup-go v7.0.0 and setup-task v2.2.0 pins use Node 24, replacing the actions
+that produced the earlier Node 20 runtime warnings. upload-artifact v7.0.1 also
+uses Node 24. These action runtimes do not change the application's Node version
+selected by `.nvmrc`, the Go version in `go.mod`, or Task 3.53.1.
+The pins were checked against the official
+[setup-go release](https://github.com/actions/setup-go/releases/tag/v7.0.0),
+[setup-task release](https://github.com/go-task/setup-task/releases/tag/v2.2.0),
+and [upload-artifact release](https://github.com/actions/upload-artifact/releases/tag/v7.0.1)
+and their `action.yml` runtime declarations.
 The workflow token has only `contents: read`, checkout does not retain Git
 credentials, and this pipeline requires no repository secrets.
 
-## First run and review together
+## First E2E CI run and review together
 
 Local validation is not a GitHub-hosted run. After reviewing the commits, push
 the existing branch normally. There is no need to merge it into `main` first.
@@ -56,16 +84,65 @@ the initial feature-branch run is triggered by its push. See GitHub's
 [manual-run documentation](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).
 
 Branch protection and required checks are deliberately not changed here. We
-will choose them after seeing a successful hosted run. Image builds, deployment,
-Playwright, and other browser test frameworks are also deferred.
+will choose them after seeing a successful hosted run. Image builds and
+deployment remain deferred. The E2E job has been configured locally; its
+first GitHub-hosted run must still be verified after pushing.
+
+## Download a replay after a failure
+
+Open **Actions → CI → the run → Artifacts** and download
+`playwright-results-<attempt>`. Artifacts are retained for seven days. This upload
+contains only `frontend/playwright-report/` and `frontend/test-results/`, not the
+database volume or the rest of the repository.
+
+The HTML report is uploaded on successful and failed runs. The current Playwright
+configuration retains traces and screenshots only for failed tests; passing tests
+do not have saved traces. If setup fails before Playwright starts, there may be
+no report to upload—read the failed setup step's log instead. Uploading a report
+does not turn a failed test job green.
+
+After extracting the downloaded ZIP to a folder you choose, use the locked
+Playwright installation from the repository root (replace the example path):
+
+```powershell
+node frontend/node_modules/@playwright/test/cli.js show-report "C:\path\to\extracted\playwright-report"
+```
+
+Open the failed test in the report and select its trace to inspect actions,
+screenshots, and network activity. Traces can contain request data and cookies,
+so keep these tests pointed at disposable test data. See
+[Playwright CI reports](https://playwright.dev/docs/ci-intro) and
+[artifact retention](https://github.com/actions/upload-artifact#retention-period).
 
 ## Local equivalents
 
 ```powershell
 task check
 task backend:test:integration
+task test:e2e
 ```
 
 The second command needs PostgreSQL and `DATABASE_URL`. Locally, Task can load
 that URL from `.env`; GitHub provides its own URL through the job environment.
 The integration tests own temporary schemas and do not modify application scores.
+The third command instead manages and resets the dedicated E2E database. See
+`docs/testing/e2e.md` for local UI mode, keep mode, and pgAdmin inspection.
+
+## Local verification (2026-09-07, Windows)
+
+- actionlint v1.7.12 passed for `.github/workflows/ci.yml` (workflow/expression
+  validation; optional ShellCheck/Pyflakes integrations were disabled).
+- YAML assertions passed for the three independent jobs, read-only permissions,
+  full-SHA action pins, shared Task commands, upload-after-failure condition,
+  artifact paths, and seven-day retention.
+- The Task dry run expands the Linux installation command to
+  `node node_modules/@playwright/test/cli.js install chromium --with-deps`.
+  A Playwright `--dry-run` also confirmed argument forwarding without installing
+  browsers or system libraries on the developer's machine.
+- `task check` passed, including Go tests, all 21 Vitest tests, and both builds.
+- With `CI=true`, `task test:e2e KEEP_TEST_DB=true` passed all four scenarios in
+  54.8 seconds and generated the HTML report. Keep mode preserved the developer's
+  isolated test container; the workflow explicitly uses `KEEP_TEST_DB=false`.
+- The Ubuntu browser/library installation, action execution, and artifact upload
+  have not run on GitHub yet. Commit/push and inspect that hosted run before
+  considering the CI rollout verified.

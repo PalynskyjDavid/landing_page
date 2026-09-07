@@ -5,8 +5,9 @@ This roadmap is both the project TODO list and the working agreement for learnin
 Current focus (2026-09-07): David confirmed the first hosted CI run succeeded for
 `b7857ff`. David enabled and ran all four Playwright scenarios: save/reload,
 idempotency, simulated API-loss recovery, and invalid input. The isolated
-test-database lifecycle is verified locally. Next: add the suite and failure
-artifacts to CI; saving an anonymous score remains an optional manual exercise.
+test-database lifecycle is verified locally. The E2E CI job and seven-day report
+uploads are now configured. Next: review/push these changes and verify the first
+hosted E2E run; saving an anonymous score remains an optional manual exercise.
 Checkpoint checks passed: `task check` (including 21 Vitest tests and both builds)
 and all four scenarios via `task test:e2e KEEP_TEST_DB=true`.
 See `docs/testing/e2e.md` and `docs/ci.md`.
@@ -241,8 +242,9 @@ tests. Browser automation from Stage 6 can be added afterward.
 - [x] Add GitHub Actions for formatting, linting, tests, and builds. **Codex**
 - [x] Configure a disposable PostgreSQL service for migrations and integration tests in CI. **Codex**
 - [x] Push the branch and inspect the first successful GitHub-hosted run together; David reported success for `b7857ff`. **Pair**
-- [ ] Update setup-go and setup-task action pins to Node 24-compatible releases after reviewing the CI warnings. **Codex**
-- [ ] Run the four-scenario Playwright suite in CI and upload failure traces/screenshots. **Pair**
+- [x] Update setup-go and setup-task action pins to verified Node 24-compatible releases. **Codex**
+- [x] Configure the four-scenario Playwright CI job with seven-day report/failure artifact uploads. **Codex**
+- [ ] Push and verify the first hosted E2E run, then download and inspect its report together. **Pair**
 - [ ] Build production Docker images without publishing them. **Codex setup**
 - [ ] Protect the main branch with required checks. **David, repository settings**
 

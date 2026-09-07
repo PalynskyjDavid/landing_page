@@ -91,10 +91,10 @@ tasks:
       - node frontend/scripts/test-db.js logs
 
   test:e2e:install:
-    desc: Install the Chromium browser for the locked Playwright version (run npm ci first)
+    desc: "Install locked Chromium (run npm ci first); Linux CI: -- --with-deps"
     dir: "{{.FRONTEND_DIR}}"
     cmds:
-      - node node_modules/@playwright/test/cli.js install chromium
+      - node node_modules/@playwright/test/cli.js install chromium {{.CLI_ARGS}}
 
   test:e2e:
     desc: "Run isolated browser tests; options: KEEP_TEST_DB=true and -- --headed or --ui"

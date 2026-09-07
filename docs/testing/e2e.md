@@ -29,7 +29,9 @@ npm ci --prefix frontend
 task test:e2e:install
 ```
 
-Docker Desktop must be running. Go, Node.js and Task must be installed.
+Docker Desktop must be running on Windows. Go, Node.js and Task must be installed.
+On Linux CI, `task test:e2e:install -- --with-deps` installs Chromium and its
+required system libraries; the normal local install command is unchanged.
 
 ```powershell
 task test:e2e
@@ -49,7 +51,9 @@ task test:e2e KEEP_TEST_DB=true -- --ui
   up. A force-killed process or computer shutdown cannot guarantee cleanup: use
   `task test:db:down` afterward.
 - `task check` remains the quick, Docker-independent gate. E2E tests are separate
-  from Vitest and are not yet added to GitHub Actions in this slice.
+  from Vitest and now have their own job in `.github/workflows/ci.yml`. The job
+  runs headlessly with cleanup enabled and uploads reports for seven days; see
+  `docs/ci.md`. Its first hosted run remains to be verified after pushing.
 
 Read the last browser report with:
 
@@ -222,5 +226,5 @@ The existing npm audit findings (10 total) were not changed by this setup.
 - The runner still prints a keep-mode message if setup fails before the database
   starts; that message alone is not proof the database is available. Check Docker
   status when setup fails. Improving that diagnostic remains follow-up work.
-- Browser execution is still local only; adding the four scenarios and failure
-  artifacts to GitHub Actions is the next slice.
+- At this checkpoint, browser execution was still local only. The subsequent CI
+  configuration and its verification status are recorded in `docs/ci.md`.
