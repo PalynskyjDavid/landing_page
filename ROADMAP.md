@@ -2,9 +2,14 @@
 
 This roadmap is both the project TODO list and the working agreement for learning-oriented development.
 
-Current focus (2026-09-06): the local quality gate and first CI workflow are ready
-for review. Next: push the branch, inspect the first hosted CI run together, then
-choose how to automate complete browser scenarios. See `docs/ci.md`.
+Current focus (2026-09-07): David confirmed the first hosted CI run succeeded for
+`b7857ff`. David enabled and ran all four Playwright scenarios: save/reload,
+idempotency, simulated API-loss recovery, and invalid input. The isolated
+test-database lifecycle is verified locally. Next: add the suite and failure
+artifacts to CI; saving an anonymous score remains an optional manual exercise.
+Checkpoint checks passed: `task check` (including 21 Vitest tests and both builds)
+and all four scenarios via `task test:e2e KEEP_TEST_DB=true`.
+See `docs/testing/e2e.md` and `docs/ci.md`.
 
 ## How we will work
 
@@ -216,12 +221,16 @@ Depends on the contracts and safety nets from Stages 3 and 4.
 Depends on a coherent full-stack feature flow from Stage 5.
 
 - [x] Run the complete stack against an isolated PostgreSQL database for real-outage verification. **Codex**
-- [ ] Compare browser-test approaches and select a framework; Playwright is a candidate. **Pair**
-- [ ] Set up the selected browser-test framework. **Codex setup**
+- [x] Select Playwright for browser tests, alongside existing Vitest unit tests. **Pair**
+- [x] Set up Playwright and verify isolated database setup/reset/cleanup and inspection mode. **Codex setup**
+- [x] Add the first real browser scenario: play five rounds, save a named score, and reload the leaderboard. **Codex setup**
+- [ ] Add a browser scenario for saving an anonymous score; review together. **David**
 - [ ] Test playing a game, saving a score, and viewing updated analytics. **David**
-- [ ] Test that the same idempotency key cannot create duplicate scores. **David**
-- [ ] Test a queued score submission across a controlled temporary outage. **David**
-- [ ] Test validation, network failure, and unavailable-service behavior. **David**
+- [x] Test that identical submissions reuse a score and changed data with the same UUID returns a conflict. **Pair**
+- [x] Test that a queued score survives reload during simulated API loss and saves once after recovery. **Pair**
+- [x] Test invalid API inputs, error codes, and absence of stored scores. **Pair**
+- [ ] Make E2E setup-failure messages distinguish requested keep mode from a successfully started database. **Codex**
+- [ ] Automate real backend/database outages and unavailable-service recovery in Playwright. **David**
 - [ ] Define a small production smoke-test suite. **Pair**
 
 ## Stage 7 — Continuous Integration
@@ -231,8 +240,9 @@ tests. Browser automation from Stage 6 can be added afterward.
 
 - [x] Add GitHub Actions for formatting, linting, tests, and builds. **Codex**
 - [x] Configure a disposable PostgreSQL service for migrations and integration tests in CI. **Codex**
-- [ ] Push the branch and inspect the first successful GitHub-hosted run together. **Pair**
-- [ ] Run the Playwright smoke suite in CI. **Pair**
+- [x] Push the branch and inspect the first successful GitHub-hosted run together; David reported success for `b7857ff`. **Pair**
+- [ ] Update setup-go and setup-task action pins to Node 24-compatible releases after reviewing the CI warnings. **Codex**
+- [ ] Run the four-scenario Playwright suite in CI and upload failure traces/screenshots. **Pair**
 - [ ] Build production Docker images without publishing them. **Codex setup**
 - [ ] Protect the main branch with required checks. **David, repository settings**
 

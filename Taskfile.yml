@@ -55,6 +55,54 @@ tasks:
       - task: db:up
       - task: db:migrate
 
+  test:db:setup:
+    desc: Start isolated E2E PostgreSQL, migrate it, and RESET its data to the baseline
+    cmds:
+      - node frontend/scripts/test-db.js setup
+
+  test:db:up:
+    desc: Start or resume E2E PostgreSQL without resetting data
+    cmds:
+      - node frontend/scripts/test-db.js up
+
+  test:db:reset:
+    desc: RESET only E2E data to baseline.sql; keep the migrated schema
+    cmds:
+      - node frontend/scripts/test-db.js reset
+
+  test:db:stop:
+    desc: Stop E2E PostgreSQL while preserving its test data
+    cmds:
+      - node frontend/scripts/test-db.js stop
+
+  test:db:down:
+    desc: Remove the isolated E2E container and DELETE its disposable test volume
+    cmds:
+      - node frontend/scripts/test-db.js down
+
+  test:db:status:
+    desc: Show the isolated E2E PostgreSQL container
+    cmds:
+      - node frontend/scripts/test-db.js status
+
+  test:db:logs:
+    desc: Show recent isolated E2E PostgreSQL logs
+    cmds:
+      - node frontend/scripts/test-db.js logs
+
+  test:e2e:install:
+    desc: Install the Chromium browser for the locked Playwright version (run npm ci first)
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - node node_modules/@playwright/test/cli.js install chromium
+
+  test:e2e:
+    desc: "Run isolated browser tests; options: KEEP_TEST_DB=true and -- --headed or --ui"
+    env:
+      KEEP_TEST_DB: '{{.KEEP_TEST_DB | default "false"}}'
+    cmds:
+      - node frontend/scripts/test-e2e.js {{.CLI_ARGS}}
+
   db:up:
     desc: Start only the local PostgreSQL service and wait until it is healthy
     dotenv: [".env"]
