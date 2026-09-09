@@ -14,6 +14,17 @@ Release decision (2026-09-09): finish the source-control/CI checkpoint here.
 David and his friend will choose PaaS/IaaS hosting and work on CD together.
 Do not configure hosting, publish images or deploy infrastructure in this slice.
 
+Checkpoint complete: [CI run #5](https://github.com/PalynskyjDavid/landing_page/actions/runs/34346372439)
+passed for `f300a4a` on `codex/backend-foundation`; `main` is unchanged. Current
+work is the pre-deployment repository/configuration cleanup, including retirement
+of the two legacy backends explicitly requested by David. See the new root README,
+[configuration guide](docs/configuration.md) and ADR 0007.
+
+Backup and security preparation is now locally verified too. See
+[backup/restore commands](docs/backups.md) and the
+[source/image review](docs/security/release-review-2026-09-09.md). These changes
+are not yet committed/pushed; the next slice is final review and hosted CI.
+
 The System statistics tab adds anonymous API traffic/error/latency graphs.
 Migration 008 and a separate Go collector persist bounded request summaries;
 private Docker logs remain separate. See [observability](docs/observability.md)
@@ -28,21 +39,51 @@ Release checklist:
 - [x] Edge rate limits, body bounds, Retry-After and reload-safe submission cooldown.
 - [x] Finish final browser/quality verification and review this slice.
 - [x] Add anonymous public request graphs with private logs, retention and outage buffering.
-- [ ] Commit/push when requested and verify all hosted CI jobs.
+- [x] Commit/push the game/statistics checkpoint and verify all hosted CI jobs (`f300a4a`).
+- [x] Add a root README, canonical host development tasks and clear environment ownership.
+- [x] Retire the legacy backend source and default startup after checking active references.
+- [x] Verify local cleanup: quality/security gates, setup guards, Compose/dry runs and a temporary API startup smoke test.
+- [ ] Commit/push the cleanup when requested and check the new exact SHA in CI.
+- [x] Add repeatable read-only backups and isolated restore/dump/restore verification.
+- [x] Scan all local Git refs/shareable source and rebuild/scan all three app images.
+- [ ] Review the remaining BusyBox medium advisory with the hosting owner and recheck before public release.
 - [ ] With David and his friend, choose the PaaS/IaaS target, then prepare HTTPS,
   private services, secrets, backups and deploy/rollback. CD is deferred to that session.
 
-Local verification: `task check`, `task security:check`, API contract checks,
+Cleanup verification (2026-09-09): `task check` passed, including 82 Vitest tests
+and Go configuration/contract tests; `task security:check` passed with the existing
+non-reachable Tern advisory. Both Compose files validated and new development
+tasks were dry-run. A separately built temporary API container passed readiness,
+liveness and image health checks without POSTGRES_* variables; explicit empty
+CORS was verified over HTTP. The container was removed afterward. Existing
+containers, `.env` and data were not changed. Full reset-heavy E2E was not rerun
+for this cleanup; its last hosted pass is the earlier `f300a4a` checkpoint.
+These cleanup edits remain uncommitted/unpushed pending review.
+
+Recovery/security verification (2026-09-09): read-only backups succeeded for both
+existing DBs; the E2E archive restored with schema 8 and three scores, then matched
+all public tables and sequence state after another dump/restore. Temporary offline
+DB containers were removed. `task check` passed with 102 Vitest tests; dependency
+checks passed with the documented unreachable Tern advisory. Gitleaks scanned 25
+local-ref commits and the shareable tree: two exact historical false positives
+were documented; no unreviewed candidates remain. Grype reported zero findings
+for API/collector. Removing unused NGINX modules/curl removed high findings; three
+medium package matches for one BusyBox CVE remain visible. The narrowed web image
+passed a read-only Chromium smoke test. No existing services were replaced, no
+source data reset, and no full E2E reset suite or hosted CI was run in this slice.
+
+Game/statistics verification before the `f300a4a` checkpoint: `task check`, `task security:check`, API contract checks,
 PostgreSQL integration tests and all fourteen browser scenarios passed (6.2 minutes).
 The final dark-mode contrast assertions passed in a focused rerun. Quality checks
 include 77 Vitest tests; telemetry/HTTP tests also passed twenty repetitions.
 Standalone reset and web restart/collector reattachment passed. Manual E2E data
 was restored and compared exactly with its backup before applying migration 008.
 All four containers are healthy at `http://127.0.0.1:5188/statistics?view=system`;
-the three original games remain, and development data is untouched. No commit,
-push or publication was performed. Detailed evidence is in `docs/testing/e2e.md`.
+the three original games remained, and development data was untouched. This was
+subsequently committed/pushed at `f300a4a`; nothing was deployed. Detailed evidence
+is in `docs/testing/e2e.md`.
 
-Previous checkpoint (2026-09-08): Dependency review is complete for the canonical app
+Historical checkpoint (2026-09-08, now included in `f300a4a`): Dependency review is complete for the canonical app
 and Tern. Targeted npm/Go updates and matching Node 22.23.2, Go 1.26.8 and NGINX
 1.30.4 image pins resolved known npm and reachable Go findings. The router no
 longer trusts caller-supplied IP headers. `task security:check` now runs locally
@@ -81,14 +122,18 @@ is pending. See [the review](docs/security/dependency-review-2026-09-08.md),
 Older ownership labels record the original learning plan; unless David reserves
 a task, the implementation-first agreement above now applies.
 
-### Current prepared slice: release checkpoint; CD with David and his friend later
+### Current prepared slice: final Git/CI checkpoint and friend handoff
 
-- **Outcome:** establish a reviewed, hosted-green game/statistics release candidate.
-- **Scope:** review accumulated changes, separate coherent commits when practical,
-  and select Node 22.23.2 in David's normal terminal. Commit/push when requested;
-  inspect all three hosted jobs and the Playwright report. Keep `main` unchanged.
-- **Acceptance:** hosted quality/security, PostgreSQL, and fourteen browser scenarios pass;
-  document any platform-specific difference instead of weakening checks.
+- **Outcome:** a reviewed release candidate that the friend can clone and evaluate.
+- **Scope:** review the cleanup/retirement, backup tooling, image minimization and
+  security evidence; commit/push when requested. Exclude all private backups,
+  scan inputs/reports, binaries and image archives. Keep `main` unchanged.
+- **Acceptance:** all three existing CI jobs pass for the new exact commit,
+  including the complete browser suite on its own disposable database. An older
+  green result or the local smoke test is not a substitute.
+- **Then:** share the branch and README with the friend, review the residual
+  advisory and choose platform-specific deployment settings. No extra game
+  features before handoff.
 - **Then, with David and his friend:** select the available PaaS/IaaS target and release method. Keep the
   existing container images, add immutable commit-based tags and image scanning,
   and verify backup/restore plus deploy/rollback before sharing a public link.
@@ -177,10 +222,10 @@ Agree on what the application is and select one maintainable technical direction
 - [ ] Decide whether analytics remains a developer page or becomes a product feature. **Pair**
 - [x] Select `my-backend` as the canonical Go backend after comparing architectural quality and feature completeness. See ADR 0001. **Pair**
 - [x] Reject NestJS as the production backend; Go is the learning and implementation language. **David**
-- [ ] If `my-backend` is selected, port required stats, worker, logging, Docker, and migration tooling from `backend-go`. **Pair**
-- [ ] Archive or remove the unselected Go implementation only after feature parity and verification. **Pair**
-- [ ] Archive or remove the obsolete NestJS `backend` after the baseline checkpoint. **Pair**
-- [ ] Decide whether the separate statistics worker is justified. **Pair**
+- [x] Redesign required statistics, logging, Docker and migration behavior in `my-backend`; reject the old periodic stats worker (ADR 0007). **Codex**
+- [x] Retire the unselected Go implementation after required behavior was redesigned and verified (ADR 0007). **Codex**
+- [x] Remove the obsolete NestJS `backend`, preserving Git history (ADR 0007). **Codex**
+- [x] Use on-demand game statistics and a separate bounded telemetry collector, not the old stats worker (ADRs 0006/0007). **Codex**
 - [x] Defer authentication until business requirements justify it; use anonymous identity initially. **David**
 - [x] Defer Kubernetes, microservices, and real infrastructure controls until later milestones. **David**
 - [x] Start recording decisions as short Architecture Decision Records under `docs/decisions/`. **Pair**
@@ -197,9 +242,9 @@ Agree on what the application is and select one maintainable technical direction
 Depends on Stage 1.
 
 - [ ] Agree on the target repository layout. **Pair**
-- [ ] Consolidate or archive duplicate backends without deleting history. **Pair**
+- [x] Consolidate duplicate backends without deleting history. **Codex**
 - [ ] Create one reliable local startup command. **Pair**
-- [ ] Normalize environment-variable names and validation. **David**
+- [x] Document environment ownership and remove unused API credential requirements. **Codex**
 - [x] Make database migrations reproducible with a pinned Tern tool and Task commands. **Pair**
 - [ ] Add seed data for local development and tests. **David**
 - [x] Add health and readiness checks. **Codex**

@@ -2,6 +2,47 @@
 
 Date: 2026-09-09. Branch: `codex/backend-foundation`. `main` remains unchanged.
 
+## Checkpoint result and next preparation slice
+
+The subsequent backup/security slice is locally complete: read-only backups of
+both local DBs, two isolated restorations with identical public tables/sequences,
+and 102 passing Vitest tests plus the Go/quality gates. Full local-ref history and
+shareable-tree scans have no unreviewed candidates after two exact false-positive
+dispositions. API/collector image scans are clear; the minimized web image has no
+high/critical findings and one documented medium BusyBox advisory matched to
+three packages. See [backups](backups.md) and [the security review](security/release-review-2026-09-09.md).
+The narrowed web image passed a read-only browser smoke test. The E2E ownership
+guard was also corrected to accept API containers without the retired POSTGRES_*
+variables while still requiring the exact test database URL and ownership labels.
+
+Next: review/commit/push the accumulated local changes when requested and verify
+all three CI jobs on that exact commit before friend handoff. Private backups,
+scanner binaries/reports and image archives stay ignored. No deployment, history
+rewrite, public credential testing or existing database reset was performed.
+
+Hosted [CI run #5](https://github.com/PalynskyjDavid/landing_page/actions/runs/34346372439)
+passed at commit `f300a4a4c8e412afe5bdab2f7d09a6b146dfd2b1`: quality/security in
+2m, PostgreSQL in 1m28s, and full-container browser tests in 9m26s.
+The sections below record the original pre-push review, not an assertion that
+subsequent commits have already passed CI.
+
+The next preparation slice adds a newcomer README and configuration guide,
+retirements under ADR 0007, and explicit canonical development tasks. Reusable
+backup/restore rehearsal and full-history/image scanning remain next; platform
+selection and CD remain with David and his friend. No deployment or registry
+publication is part of this cleanup.
+
+Cleanup local verification (2026-09-09): `task check` passed (82 Vitest tests plus
+Go tests/format/lint/build), and `task security:check` passed with the documented
+unreachable Tern advisory. Compose validation and dry runs confirmed the normal
+development path is database-only plus host Go/Vite. A separate temporary API
+image/container started with only DATABASE_URL and explicit empty CORS_ORIGIN;
+readiness, liveness, image healthcheck and disabled CORS were verified. The
+temporary container was removed; original containers and database data were
+untouched. The full E2E reset suite was not rerun in this cleanup, and these edits
+have not yet been committed/pushed or hosted-tested. The fresh-clone `dev:setup`
+path was dry-run, not executed against the existing development database.
+
 ## Scope
 
 Capture the accumulated, locally tested release candidate and verify its exact

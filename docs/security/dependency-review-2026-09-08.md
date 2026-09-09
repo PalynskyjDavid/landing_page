@@ -168,7 +168,7 @@ The machine-wide Node selection was not changed. Use the nvm-windows commands in
 - Before resets, the running manual E2E database was saved to ignored
   `frontend/.e2e/manual-before-security-20260908.dump`. After normal test cleanup,
   it was restored and its data-only dump SHA-256 matched exactly, including sequence
-  values and excluding pg_dump's randomized restrict token:
+  values and excluding pg_dump's randomized restore guard. The SHA-256 checksum was:
   `3384f9675183de8a59318cadc0003b30c8602341af7bbcfe34ea8dfc2ea09ab9`.
   This is one-off preservation, not a new automatic backup feature.
 - The manual stack is running again at `http://127.0.0.1:5188`. The development

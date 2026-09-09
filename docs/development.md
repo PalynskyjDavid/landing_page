@@ -1,5 +1,11 @@
 # Development Workflow
 
+New here? Follow the [root README](../README.md) first. It explains the supported
+two-terminal development path (`task dev:setup`, `task backend:dev`,
+`task frontend:dev`) and the separately resettable container demo. Root Compose
+now contains only PostgreSQL; the old backends have been retired (ADR 0007).
+See [configuration ownership](configuration.md) before editing `.env` settings.
+
 For the containerized System statistics tab and its new Go collector, see
 [the observability guide](observability.md). Collection runs in the isolated
 four-container stack; direct hot-reload API traffic is not counted by NGINX.

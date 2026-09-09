@@ -13,6 +13,11 @@ ENV VITE_API_URL=/api
 RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:1.30.4-alpine@sha256:442753882674b49ae2c1de83ed67896131c0777f56df5005e356e62bc3f7e7ce
+# This app serves static files and proxies HTTP; it never loads these optional
+# modules or uses curl. Removing them also removes unused TIFF/XML/image libraries.
+# No package upgrade or network download: keep the pinned base reproducible.
+USER root
+RUN --network=none apk del nginx-module-image-filter nginx-module-xslt nginx-module-geoip nginx-module-njs curl
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 USER 101:101

@@ -89,9 +89,10 @@ export function assertOwnedContainer(container, service = "db") {
     !["db", "api", "web", "collector"].includes(service) ||
     labels["com.docker.compose.service"] !== service ||
     labels["landing-page.e2e"] !== "true" ||
-    (["web", "collector"].includes(service)
-      ? !env.includes(`LANDING_PAGE_RUNTIME=${service}-e2e`)
-      : !env.includes("POSTGRES_DB=reaction_e2e") || !env.includes("POSTGRES_USER=e2e_user"))
+    (["web", "collector"].includes(service) &&
+      !env.includes(`LANDING_PAGE_RUNTIME=${service}-e2e`)) ||
+    (service === "db" &&
+      (!env.includes("POSTGRES_DB=reaction_e2e") || !env.includes("POSTGRES_USER=e2e_user")))
   )
     throw new Error("Refusing to operate on a container not owned by this E2E project.");
   if (

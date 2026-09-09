@@ -1,0 +1,5 @@
+# Exact historical findings reviewed in docs/security/release-review-2026-09-09.md.
+# A documented SHA-256 backup checksum, not an API credential.
+f300a4a4c8e412afe5bdab2f7d09a6b146dfd2b1:docs/security/dependency-review-2026-09-08.md:generic-api-key:171
+# The official Nest starter's abc123def456 badge placeholder in the retired README.
+30ee9dce1984ca4b0e8deef3c9f31e4d04f9cc8f:backend/README.md:generic-api-key:5

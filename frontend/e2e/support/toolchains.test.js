@@ -6,6 +6,14 @@ import { repositoryDir } from "./environment.js";
 const read = (file) => readFileSync(path.join(repositoryDir, file), "utf8");
 
 describe("local and container toolchain pins", () => {
+  it("removes unused web image modules while retaining the unprivileged runtime user", () => {
+    const dockerfile = read("frontend/Dockerfile");
+    expect(dockerfile).toContain(
+      "RUN --network=none apk del nginx-module-image-filter nginx-module-xslt nginx-module-geoip nginx-module-njs curl",
+    );
+    expect(dockerfile.lastIndexOf("USER 101:101")).toBeGreaterThan(dockerfile.indexOf("apk del"));
+    expect(read("frontend/nginx.conf")).not.toMatch(/^\s*load_module\b/m);
+  });
   it("uses the same Node release for local development, CI and Docker", () => {
     const nodeVersion = read(".nvmrc").trim();
     expect(nodeVersion).toMatch(/^\d+\.\d+\.\d+$/);

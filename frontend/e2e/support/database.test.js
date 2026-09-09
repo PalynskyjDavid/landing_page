@@ -65,11 +65,13 @@ describe("E2E database safety (no Docker required)", () => {
   it("accepts the test API only when its labels AND database target match", () => {
     const container = ownedContainer();
     container.Config.Labels["com.docker.compose.service"] = "api";
-    container.Config.Env.push(
+    container.Config.Env = [
       "DATABASE_URL=postgresql://e2e_user:e2e_password@db:5432/reaction_e2e?sslmode=disable",
-    );
+    ];
     expect(() => assertOwnedContainer(container, "api")).not.toThrow();
-    container.Config.Env[2] = "DATABASE_URL=postgresql://development/important";
+    container.Config.Env[0] = "DATABASE_URL=postgresql://development/important";
+    expect(() => assertOwnedContainer(container, "api")).toThrow("different database");
+    container.Config.Env = [];
     expect(() => assertOwnedContainer(container, "api")).toThrow("different database");
   });
 });

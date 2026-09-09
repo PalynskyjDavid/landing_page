@@ -7,6 +7,11 @@ An additional small Go collector stores anonymous edge-request summaries; see
 (or the GitHub runner); Vite is used only for
 the development-only Swagger test and optional local hot reload.
 
+Root `docker-compose.yml` is intentionally database-only for host Go/Vite
+development. It no longer starts either retired backend. Use the
+[README](../README.md) to choose between editing locally and the isolated
+container demo below; neither Compose file is a production deployment template.
+
 ## Image versus container
 
 An **image** is the built package: our executable, certificate files, and metadata
@@ -83,7 +88,11 @@ credentials and HTTP remain unsuitable for public hosting. Basic rate limiting
 now exists at NGINX, but direct Go access bypasses it; public hosting must keep
 Go and PostgreSQL private.
 TLS, secure cookies, backups, trusted-proxy configuration and full image scanning
-come later. The [2026-09-08 dependency review](security/dependency-review-2026-09-08.md)
+were initially deferred. Local backup/restore rehearsal and app image scans are
+now available: see [backups](backups.md) and the
+[2026-09-09 release review](security/release-review-2026-09-09.md). TLS, proxy trust
+and production backup arrangements still belong to the paired hosting session.
+The [2026-09-08 dependency review](security/dependency-review-2026-09-08.md)
 updated Node to 22.23.2, Go to 1.26.8 and NGINX to 1.30.4, with matching image
 digests. Known npm and reachable Go findings were addressed; that is not a full
 security audit. The backend now keeps the connection's actual peer address and

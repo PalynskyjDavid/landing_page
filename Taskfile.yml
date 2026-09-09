@@ -33,6 +33,16 @@ tasks:
     cmds:
       - npm audit
 
+  security:secrets:
+    desc: Scan all local Git refs and shareable working-tree files with pinned Gitleaks; redact reports
+    cmds:
+      - node frontend/scripts/security-scan.js secrets
+
+  security:images:
+    desc: Rebuild and scan local app image exports with pinned Grype; fail on high/critical findings; no publication
+    cmds:
+      - node frontend/scripts/security-scan.js images
+
   backend:vuln:
     desc: Scan reachable vulnerabilities in the canonical Go backend and its standard library
     cmds:
@@ -73,11 +83,48 @@ tasks:
       - task: backend:build
       - task: frontend:build
 
+  dev:setup:
+    desc: Install locked frontend dependencies, start local PostgreSQL, and apply pending migrations (no reset)
+    preconditions:
+      - sh: test -f .env
+        msg: Copy .env.example to .env and review the local database settings first.
+    cmds:
+      - npm ci --prefix "{{.FRONTEND_DIR}}"
+      - task: db:setup
+
+  backend:dev:
+    desc: Run the canonical Go API locally; Ctrl+C stops it, rerun after Go edits
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go run ./cmd/api
+
+  frontend:dev:
+    desc: Run React with Vite hot reload at http://localhost:5173
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm run dev -- --host localhost --port 5173 --strictPort
+
   db:setup:
     desc: Start PostgreSQL, wait until it is healthy, and apply all migrations
     cmds:
       - task: db:up
       - task: db:migrate
+
+  db:backup:
+    desc: Back up the running local DB without changing it; SOURCE=e2e selects the isolated test DB
+    env:
+      BACKUP_SOURCE: '{{.SOURCE | default "development"}}'
+    cmds:
+      - node frontend/scripts/db-backup.js backup
+
+  db:restore:check:
+    desc: Restore a trusted local backup twice into disposable offline DBs and compare data; never overwrite an existing DB
+    requires:
+      vars: [FILE]
+    env:
+      BACKUP_FILE: '{{.FILE}}'
+    cmds:
+      - node frontend/scripts/db-backup.js restore-check
 
   test:db:setup:
     desc: Start isolated E2E PostgreSQL, migrate it, and RESET its data to the baseline
@@ -92,7 +139,7 @@ tasks:
   frontend:image:build:
     desc: Build the production React/NGINX image locally; do not publish it
     cmds:
-        - node frontend/scripts/test-stack.js web:build
+      - node frontend/scripts/test-stack.js web:build
 
   collector:image:build:
     desc: Build the private telemetry collector image without resetting data or publishing it

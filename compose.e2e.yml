@@ -45,9 +45,6 @@ services:
     environment:
       # Inside this network 'db' is PostgreSQL; localhost would mean the API itself.
       DATABASE_URL: postgresql://e2e_user:e2e_password@db:5432/reaction_e2e?sslmode=disable
-      POSTGRES_DB: reaction_e2e
-      POSTGRES_USER: e2e_user
-      POSTGRES_PASSWORD: e2e_password
       BACKEND_PORT: "3001"
       CORS_ORIGIN: http://127.0.0.1:5187
       COOKIE_SECURE: "false"
