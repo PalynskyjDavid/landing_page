@@ -198,6 +198,11 @@ Layer,              Purpose,                    Example
     border-color: rgb(var(--fg));
   }
 
+  .ui-surface-inverse:hover {
+    color: rgb(var(--bg));
+    border-color: rgb(var(--fg));
+  }
+
   .ladder-link {
     position: relative;
     display: inline-flex;

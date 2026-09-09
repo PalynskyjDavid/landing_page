@@ -7,4 +7,5 @@ import "context"
 type Repository interface {
 	Create(ctx context.Context, params CreateParams) (*Result, bool, error)
 	ListLeaderboard(ctx context.Context, params LeaderboardParams) ([]LeaderboardEntry, error)
+	ReadStatistics(ctx context.Context, params StatisticsParams) (*Statistics, error)
 }

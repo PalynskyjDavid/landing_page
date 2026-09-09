@@ -49,6 +49,47 @@ function createMemoryOutbox() {
 }
 
 describe("score delivery", () => {
+  it("persists rate-limit cooldown across new games, retries and an app restart", async () => {
+    vi.useFakeTimers();
+    try {
+      const outbox = createMemoryOutbox();
+      const sendScore = vi
+        .fn()
+        .mockRejectedValueOnce(
+          Object.assign(new Error("Slow down"), {
+            status: 429,
+            isRetryable: true,
+            retryAfterMs: 5000,
+          }),
+        )
+        .mockResolvedValue({ id: 1 });
+      const checkReadiness = vi.fn();
+      const options = { outbox, sendScore, checkReadiness, eventTarget: undefined };
+      const first = createScoreDelivery(options);
+      await first.start();
+      await first.submit(submission(1));
+      await first.submit(submission(2));
+      await first.retryNow();
+      expect(sendScore).toHaveBeenCalledTimes(1);
+      expect(checkReadiness).not.toHaveBeenCalled();
+      expect(first.getSnapshot().availability).toBe("rate_limited");
+      expect(outbox.records.get(submission(1).submissionId).lastError.retryAt).toBeGreaterThan(
+        Date.now(),
+      );
+      first.stop();
+      const restarted = createScoreDelivery(options);
+      await restarted.start();
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(sendScore).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(sendScore).toHaveBeenCalledTimes(3);
+      expect(checkReadiness).not.toHaveBeenCalled();
+      expect(restarted.getSnapshot().pendingCount).toBe(0);
+      restarted.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("uses bounded retries and then queues without sending additional scores", async () => {
     const outbox = createMemoryOutbox();
     const sendScore = vi.fn().mockRejectedValue(retryableError());

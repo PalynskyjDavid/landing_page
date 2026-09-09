@@ -91,6 +91,15 @@ export function createDeliveryNotifications(initialSnapshot) {
 
     if (failures.length > 0) return notification;
 
+    if (snapshot.availability === "rate_limited") {
+      return show(
+        "rate_limited",
+        "Waiting for the rate limit",
+        "Your scores remain in this browser. Saving will resume after the server’s cooldown.",
+        { tone: "warning", autoCloseMs: 10000 },
+      );
+    }
+
     // "queueing" has not committed to browser storage yet.
     const waitingCount = Math.max(
       snapshot.pendingCount,

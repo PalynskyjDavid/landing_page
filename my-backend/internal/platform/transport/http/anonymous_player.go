@@ -13,6 +13,11 @@ const anonymousPlayerCookieMaxAge = 60 * 60 * 24 * 365
 
 type playerIDContextKey struct{}
 
+type playerIdentity struct {
+	id          string
+	established bool
+}
+
 func AnonymousPlayer(cookieSecure bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -34,15 +39,24 @@ func AnonymousPlayer(cookieSecure bool) func(http.Handler) http.Handler {
 				})
 			}
 
-			ctx := context.WithValue(r.Context(), playerIDContextKey{}, playerID)
+			ctx := context.WithValue(r.Context(), playerIDContextKey{}, playerIdentity{
+				id: playerID, established: !shouldSetCookie,
+			})
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
 
 func PlayerIDFromContext(ctx context.Context) (string, bool) {
-	playerID, ok := ctx.Value(playerIDContextKey{}).(string)
-	return playerID, ok && playerID != ""
+	identity, ok := ctx.Value(playerIDContextKey{}).(playerIdentity)
+	return identity.id, ok && identity.id != ""
+}
+
+// A cookie sent back by the caller is established. Merely issuing Set-Cookie
+// does not prove the browser received it; the response could be lost.
+func PlayerCookieEstablished(ctx context.Context) bool {
+	identity, ok := ctx.Value(playerIDContextKey{}).(playerIdentity)
+	return ok && identity.established
 }
 
 func resolvePlayerID(r *http.Request) (string, bool, error) {

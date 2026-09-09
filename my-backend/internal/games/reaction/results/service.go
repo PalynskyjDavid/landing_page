@@ -3,6 +3,7 @@ package results
 import (
 	"context"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/palyndav/my-backend/internal/apperror"
@@ -16,10 +17,11 @@ const maxLeaderboardLimit = 50
 
 type Service struct {
 	repository Repository
+	now        func() time.Time
 }
 
 func NewService(repository Repository) *Service {
-	return &Service{repository: repository}
+	return &Service{repository: repository, now: time.Now}
 }
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (*Result, bool, error) {
@@ -170,12 +172,12 @@ func validateCreateInput(input CreateInput) error {
 		return apperror.BadRequest("score_invalid_round_count", "times must contain exactly five reaction times.", nil)
 	}
 	for _, timeMs := range input.Times {
-		if timeMs <= 0 {
-			return apperror.BadRequest("score_invalid_time", "times must contain only positive values.", nil)
+		if timeMs <= 0 || timeMs > 2147483647 {
+			return apperror.BadRequest("score_invalid_time", "times must contain integers between 1 and 2147483647.", nil)
 		}
 	}
-	if input.Missclicks < 0 {
-		return apperror.BadRequest("score_invalid_missclicks", "missclicks cannot be negative.", nil)
+	if input.Missclicks < 0 || input.Missclicks > 2147483647 {
+		return apperror.BadRequest("score_invalid_missclicks", "missclicks must be between 0 and 2147483647.", nil)
 	}
 	if input.DisplayName != nil && utf8.RuneCountInString(*input.DisplayName) > maxDisplayNameLength {
 		return apperror.BadRequest("score_display_name_too_long", "displayName cannot be longer than 24 characters.", nil)

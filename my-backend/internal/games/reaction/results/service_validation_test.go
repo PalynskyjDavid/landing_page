@@ -77,6 +77,20 @@ func TestServiceCreateRejectsInvalidInput(t *testing.T) {
 			wantCode: "score_invalid_missclicks",
 		},
 		{
+			name: "reaction time exceeds database integer range",
+			change: func(input *CreateInput) {
+				input.Times[0] = 2147483648
+			},
+			wantCode: "score_invalid_time",
+		},
+		{
+			name: "missclicks exceed database integer range",
+			change: func(input *CreateInput) {
+				input.Missclicks = 2147483648
+			},
+			wantCode: "score_invalid_missclicks",
+		},
+		{
 			name: "display name longer than 24 characters",
 			change: func(input *CreateInput) {
 				displayName := strings.Repeat("a", maxDisplayNameLength+1)

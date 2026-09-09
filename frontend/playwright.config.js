@@ -1,14 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
-import path from "node:path";
 import { assertDatabaseLock } from "./e2e/support/database.js";
-import {
-  backendExecutable,
-  backendURL,
-  frontendDir,
-  frontendURL,
-  repositoryDir,
-  testEnvironment,
-} from "./e2e/support/environment.js";
+import { frontendDir, frontendURL, docsURL, directBackendURL } from "./e2e/support/environment.js";
 
 // Use task test:e2e, including for --headed/--ui. Direct runs would skip setup.
 if (!process.env.E2E_RUN_TOKEN)
@@ -37,20 +29,12 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
-      name: "E2E backend",
-      command: `"${backendExecutable}"`,
-      cwd: path.join(repositoryDir, "my-backend"),
-      env: testEnvironment,
-      url: `${backendURL}/health/ready`,
-      reuseExistingServer: false,
-      timeout: 60_000,
-    },
-    {
-      name: "E2E frontend",
-      command: `"${process.execPath}" ./node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5187 --strictPort --mode e2e`,
+      // Only Swagger is development-only. Game tests use the production web container.
+      name: "Development API docs",
+      command: `"${process.execPath}" ./node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5197 --strictPort --mode e2e`,
       cwd: frontendDir,
-      env: testEnvironment,
-      url: frontendURL,
+      env: { VITE_API_URL: "/api", VITE_API_PROXY_TARGET: directBackendURL },
+      url: docsURL,
       reuseExistingServer: false,
       timeout: 60_000,
     },

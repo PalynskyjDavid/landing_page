@@ -1,6 +1,8 @@
 import { connectionSimulation } from "./connectionSimulation.js";
+import { buildApiUrl } from "./apiUrl.js";
 
-const DEFAULT_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const DEFAULT_BASE_URL =
+  import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "/api" : "http://localhost:3001");
 const DEFAULT_TIMEOUT_MS = 10000;
 
 const clientHooks = {
@@ -19,23 +21,12 @@ class ApiClientError extends Error {
     this.url = details.url ?? null;
     this.method = details.method ?? null;
     this.isRetryable = details.isRetryable ?? false;
+    this.retryAfterMs = details.retryAfterMs ?? null;
   }
 }
 
 function buildUrl(path, params) {
-  const url = new URL(path, DEFAULT_BASE_URL);
-
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      if (value === undefined || value === null || value === "") {
-        return;
-      }
-
-      url.searchParams.set(key, String(value));
-    });
-  }
-
-  return url.toString();
+  return buildApiUrl(DEFAULT_BASE_URL, path, params);
 }
 
 function mergeSignals(timeoutMs, signal) {
@@ -107,9 +98,23 @@ function normalizeError({ error, response, payload, url, method }) {
     details,
     url,
     method,
+    retryAfterMs: parseRetryAfter(response?.headers.get("retry-after")),
     isRetryable:
       !status || status === 408 || status === 429 || status >= 500 || error?.name === "AbortError",
   });
+}
+
+export function parseRetryAfter(value, now = Date.now()) {
+  if (!value?.trim()) return null;
+  const raw = value.trim();
+  if (/^\d+$/.test(raw)) {
+    const milliseconds = Number(raw) * 1000;
+    return Number.isSafeInteger(milliseconds) ? milliseconds : null;
+  }
+  // HTTP-date, not arbitrary date-like strings such as "-1".
+  if (!/^[A-Za-z]{3}, /.test(raw)) return null;
+  const timestamp = Date.parse(raw);
+  return Number.isFinite(timestamp) ? Math.max(0, timestamp - now) : null;
 }
 
 export function isRetryableError(error) {

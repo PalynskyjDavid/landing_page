@@ -4,6 +4,7 @@ vars:
   BACKEND_DIR: my-backend
   BACKEND_TOOLS_DIR: my-backend/tools
   FRONTEND_DIR: frontend
+  GOVULNCHECK_VERSION: v1.7.0
 
 tasks:
   default:
@@ -18,6 +19,29 @@ tasks:
       - task: lint
       - task: test
       - task: build
+
+  security:check:
+    desc: Query current npm and Go vulnerability databases (network required; does not upgrade packages)
+    cmds:
+      - task: frontend:audit
+      - task: backend:vuln
+      - task: backend:tools:vuln
+
+  frontend:audit:
+    desc: Audit all locked frontend dependencies, including development/build tools
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm audit
+
+  backend:vuln:
+    desc: Scan reachable vulnerabilities in the canonical Go backend and its standard library
+    cmds:
+      - go -C "{{.BACKEND_DIR}}" run golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}} ./...
+
+  backend:tools:vuln:
+    desc: Scan reachable vulnerabilities in the pinned Tern migration tool
+    cmds:
+      - go -C "{{.BACKEND_TOOLS_DIR}}" run golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}} github.com/jackc/tern/v2
 
   format:
     desc: Rewrite backend and frontend files using their formatters
@@ -60,6 +84,89 @@ tasks:
     cmds:
       - node frontend/scripts/test-db.js setup
 
+  backend:image:build:
+    desc: Build the canonical Go runtime image locally; do not publish it
+    cmds:
+      - node frontend/scripts/test-stack.js api:build
+
+  frontend:image:build:
+    desc: Build the production React/NGINX image locally; do not publish it
+    cmds:
+        - node frontend/scripts/test-stack.js web:build
+
+  collector:image:build:
+    desc: Build the private telemetry collector image without resetting data or publishing it
+    cmds:
+      - node frontend/scripts/test-stack.js collector:build
+
+  test:collector:up:
+    desc: Start or replace the collector beside the running isolated test web container
+    cmds:
+      - node frontend/scripts/test-stack.js collector:up
+
+  test:collector:stop:
+    desc: Stop the isolated collector (best-effort metrics may have gaps)
+    cmds:
+      - node frontend/scripts/test-stack.js collector:stop
+
+  test:web:up:
+    desc: Start or replace the test web container with its latest built image; preserve DB data
+    cmds:
+      - node frontend/scripts/test-stack.js web:up
+
+  test:web:stop:
+    desc: Stop the isolated web container and its telemetry sidecar
+    cmds:
+      - node frontend/scripts/test-stack.js web:stop
+
+  test:stack:setup:
+    desc: RESET isolated test DB, migrate, build API/web/collector images, and start the test stack
+    cmds:
+      - node frontend/scripts/test-stack.js setup
+
+  test:stack:stop:
+    desc: Stop the isolated web/API/DB/collector containers, preserving test data
+    cmds:
+      - node frontend/scripts/test-stack.js stop
+
+  test:stack:up:
+    desc: Resume the already-migrated isolated stack without resetting its data
+    cmds:
+      - node frontend/scripts/test-stack.js up
+
+  test:stack:down:
+    desc: Remove the isolated web/API/DB/collector containers and DELETE disposable test data
+    cmds:
+      - node frontend/scripts/test-stack.js down
+
+  test:stack:status:
+    desc: Show isolated web/API/DB/collector container status
+    cmds:
+      - node frontend/scripts/test-stack.js status
+
+  test:stack:logs:
+    desc: Show private isolated web/API/DB/collector logs
+    cmds:
+      - node frontend/scripts/test-stack.js logs
+
+  test:api:stop:
+    desc: Gracefully stop only the isolated test API
+    cmds:
+      - node frontend/scripts/test-stack.js api:stop
+
+  test:api:up:
+    desc: Resume the test API without rebuilding or resetting DB data
+    cmds:
+      - node frontend/scripts/test-stack.js api:up
+
+  test:frontend:
+    desc: Run Vite against the isolated test API after test:stack:setup
+    dir: "{{.FRONTEND_DIR}}"
+    env:
+      VITE_API_URL: http://127.0.0.1:3107
+    cmds:
+      - node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5187 --strictPort --mode e2e
+
   test:db:up:
     desc: Start or resume E2E PostgreSQL without resetting data
     cmds:
@@ -76,7 +183,7 @@ tasks:
       - node frontend/scripts/test-db.js stop
 
   test:db:down:
-    desc: Remove the isolated E2E container and DELETE its disposable test volume
+    desc: Remove the isolated E2E web/API/DB containers and DELETE disposable test data
     cmds:
       - node frontend/scripts/test-db.js down
 
@@ -175,6 +282,12 @@ tasks:
     cmds:
       - go -C "{{.BACKEND_DIR}}" test -count=1 -run TestOpenAPI -v ./internal/games/reaction/results
 
+  api:docs:
+    desc: Start Vite with local Swagger UI at /docs (Try it out calls the configured API)
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm run dev -- --strictPort --open /docs
+
   backend:build:
     desc: Compile the Go API without writing a repository binary
     dir: "{{.BACKEND_DIR}}"
@@ -182,7 +295,7 @@ tasks:
       - go build -buildvcs=false ./...
 
   backend:test:integration:
-    desc: Test score name migrations and retries in an isolated PostgreSQL test schema
+    desc: Test migrations, retries, statistics and query performance in isolated PostgreSQL schemas
     dotenv: [".env"]
     cmds:
       - go -C "{{.BACKEND_DIR}}" test -tags=integration -count=1 -v ./internal/games/reaction/results

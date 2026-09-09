@@ -72,8 +72,8 @@ export default function Shell() {
           <TopLink to="/game" tilt="right">
             Game
           </TopLink>
-          <TopLink to="/dev/analytics" tilt="left">
-            Analytics
+          <TopLink to="/statistics" tilt="left">
+            Statistics
           </TopLink>
         </nav>
       </header>

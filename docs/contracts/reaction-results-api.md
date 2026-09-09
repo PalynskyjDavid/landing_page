@@ -41,6 +41,14 @@ The implementation applies these rules:
 
 The browser does not send `playerId` in the JSON body. The backend reads it from the `reaction_player_id` cookie so a caller cannot select another player merely by changing the request body. If the cookie is missing or invalid, the backend generates a UUID and returns a one-year, `HttpOnly`, `SameSite=Lax` cookie. Production sets the cookie's `Secure` attribute through `COOKIE_SECURE=true`.
 
+Before saving, the browser must send that cookie back. A missing/invalid-cookie
+POST returns `400 score_player_cookie_required` and `Set-Cookie` **without inserting**.
+Repeat the unchanged submission with the cookie; the frontend does this once
+automatically. A second cookie-required response is a permanent failure (for
+example, blocked cookies). Losing the first cookie response can no longer strand
+a saved score under an unknown identity. Direct API callers must follow this
+handshake or first GET the leaderboard. See ADR 0003; contract version is 2.0.0.
+
 The client does not send `totalRounds` or `averageMs`. The service derives a round count of five and calculates the average from `times` using integer division, which rounds a positive fractional result down. For example, a sum of `1208` divided by `5` is stored as `241`.
 
 ### Success response
@@ -86,6 +94,7 @@ is no separate profile-edit endpoint or client-side name timestamp yet.
 | HTTP status | Code                          | Condition                                                                                |
 | ----------- | ----------------------------- | ---------------------------------------------------------------------------------------- |
 | `400`       | `invalid_json`                | Body cannot be decoded or contains an unknown field.                                     |
+| `400`       | `score_player_cookie_required` | No established player cookie; retain Set-Cookie and retry the unchanged submission. No score was inserted. |
 | `400`       | `score_invalid_submission_id` | `submissionId` is missing or is not a UUID.                                              |
 | `400`       | `score_invalid_round_count`   | `times` does not contain exactly five values.                                            |
 | `400`       | `score_invalid_time`          | A reaction time is not positive.                                                         |
@@ -167,7 +176,23 @@ Invalid text or values outside the supported limit return:
 
 Unknown fields or directions, duplicate fields, or more than two pairs return code `score_invalid_sort`. The backend maps the allowed names to fixed SQL expressions; query values are never inserted as raw SQL column names.
 
-The frontend presents two sorting rows containing a Best/Worst selector and a Column selector. Selected table headers display their priority and direction: `↑` means best/lowest first and `↓` means worst/highest first.
+The frontend leaderboard now lives at `/statistics` and uses
+`GET /scores/statistics` for filtering and grouping. Two sorting rows select
+columns and ascending/descending order, with priority/direction in the headers.
+The older leaderboard endpoint remains available for existing clients.
+
+## Filtered statistics and rate limits
+
+See [the statistics guide](../statistics.md) for every filter, player aggregation,
+chart/summary semantics, generated best_ms, performance measurements, and limits.
+Names/dates/ranges select individual games before grouping. Summary covers all
+matches; Top N limits only visible rows. Anonymous cookies are not authentication.
+
+Score bodies are limited to 8 KiB and exactly one JSON object. Reaction samples
+must fit a positive PostgreSQL integer (1 through 2147483647); misclicks must be
+between 0 and 2147483647. NGINX limits request attempts by connection IP and may
+return JSON 429 `rate_limited` with Retry-After. Queued scores retain their UUID
+and wait through that cooldown, including after reload.
 
 Pagination remains deferred until the amount of data makes it useful.
 

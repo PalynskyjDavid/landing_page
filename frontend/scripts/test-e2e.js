@@ -1,8 +1,11 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { acquireDatabaseLock, database, runCommand } from "../e2e/support/database.js";
-import { backendExecutable, frontendDir, repositoryDir } from "../e2e/support/environment.js";
+import { acquireDatabaseLock, database } from "../e2e/support/database.js";
+import { backend } from "../e2e/support/backend.js";
+import { web } from "../e2e/support/web.js";
+import { collector } from "../e2e/support/collector.js";
+import { frontendDir } from "../e2e/support/environment.js";
 
 // Keep orchestration out of the test scenario. finally also runs after failed tests.
 export async function main() {
@@ -22,17 +25,17 @@ export async function main() {
   process.on("SIGINT", onInterrupt);
   process.on("SIGTERM", onInterrupt);
   try {
+    collector("remove", lock.token);
+    web("stop", lock.token);
+    backend("stop", lock.token);
     database("setup", lock.token);
     setupComplete = true;
-    runCommand("go", [
-      "-C",
-      path.join(repositoryDir, "my-backend"),
-      "build",
-      "-buildvcs=false",
-      "-o",
-      backendExecutable,
-      "./cmd/api",
-    ]);
+    backend("build", lock.token);
+    backend("up", lock.token);
+    web("build", lock.token);
+    web("up", lock.token);
+    collector("build", lock.token);
+    collector("up", lock.token);
     // Let queued signals run before launching the browser processes.
     await new Promise((resolve) => setImmediate(resolve));
     exitCode = interrupted
@@ -60,12 +63,47 @@ export async function main() {
   } finally {
     // Read logs while the container still exists, including failures before Playwright starts.
     if (exitCode !== 0) {
-      console.error("E2E run failed or was interrupted. PostgreSQL logs before cleanup:");
+      try {
+        collector("logs", lock.token);
+      } catch (error) {
+        console.error(`Could not read collector logs: ${error.message}`);
+      }
+      console.error("E2E run failed or was interrupted. Web/API/PostgreSQL logs before cleanup:");
+      try {
+        web("logs", lock.token);
+      } catch (error) {
+        console.error(`Could not read test web logs: ${error.message}`);
+      }
+      try {
+        backend("logs", lock.token);
+      } catch (error) {
+        console.error(`Could not read test API logs: ${error.message}`);
+      }
       try {
         database("logs", lock.token);
       } catch (error) {
         console.error(`Could not read test database logs: ${error.message}`);
       }
+    }
+    // Remove the network sidecar before its owning web container, including keep mode.
+    try {
+      collector("remove", lock.token);
+    } catch (error) {
+      console.error(`Collector cleanup failed: ${error.message}`);
+      if (!failure && exitCode === 0) failure = error;
+    }
+    // Even keep-DB mode releases the HTTP ports; only PostgreSQL data is retained.
+    try {
+      web("remove", lock.token);
+    } catch (error) {
+      console.error(`Test web cleanup failed: ${error.message}`);
+      if (!failure && exitCode === 0) failure = error;
+    }
+    try {
+      backend("remove", lock.token);
+    } catch (error) {
+      console.error(`Test API cleanup failed: ${error.message}`);
+      if (!failure && exitCode === 0) failure = error;
     }
     try {
       if (keep === "true") {

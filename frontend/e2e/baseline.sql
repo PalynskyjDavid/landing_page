@@ -13,6 +13,7 @@ END;
 $$;
 
 TRUNCATE TABLE public.scores, public.stats_summary RESTART IDENTITY;
+TRUNCATE TABLE public.request_metrics_minute, public.telemetry_batches, public.telemetry_collectors;
 
 -- Each scenario starts with an empty leaderboard and zeroed summary counters.
 INSERT INTO public.stats_summary (id, updated_at)

@@ -36,9 +36,26 @@ func Load() (Config, error) {
 	// path starts at "./cmd/api/main.go"
 	_ = godotenv.Load("../.env", ".env")
 
+	return parse(env.Options{})
+}
+
+// Separate parsing from .env loading so tests never read a developer's secrets.
+func parse(options env.Options) (Config, error) {
 	cfg := Config{}
-	if err := env.Parse(&cfg); err != nil {
+	if err := env.ParseWithOptions(&cfg, options); err != nil {
 		return Config{}, fmt.Errorf("parse config: %w", err)
+	}
+	if cfg.BACKEND_PORT < 1 || cfg.BACKEND_PORT > 65535 {
+		return Config{}, fmt.Errorf("BACKEND_PORT must be between 1 and 65535")
+	}
+	if cfg.DATABASE_URL == "" {
+		return Config{}, fmt.Errorf("DATABASE_URL must not be empty")
+	}
+	if cfg.MAX_CONNS < 1 || cfg.MIN_CONNS < 0 || cfg.MIN_CONNS > cfg.MAX_CONNS {
+		return Config{}, fmt.Errorf("connection limits require 0 <= MIN_CONNS <= MAX_CONNS and MAX_CONNS >= 1")
+	}
+	if cfg.MAX_CONN_LIFETIME <= 0 || cfg.MAX_CONN_IDLE_TIME <= 0 {
+		return Config{}, fmt.Errorf("connection lifetimes must be positive")
 	}
 
 	return cfg, nil

@@ -19,6 +19,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/palyndav/my-backend/internal/config"
 	httpapi "github.com/palyndav/my-backend/internal/platform/transport/http"
+	"github.com/palyndav/my-backend/internal/telemetry"
 )
 
 func loadOpenAPI(t *testing.T) (*openapi3.T, routers.Router) {
@@ -39,6 +40,12 @@ func loadOpenAPI(t *testing.T) (*openapi3.T, routers.Router) {
 
 type contractReadiness struct{ err error }
 
+type contractTelemetry struct{ err error }
+
+func (c contractTelemetry) Read(context.Context, telemetry.Options) (*telemetry.Report, error) {
+	return &telemetry.Report{Source: "nginx", GeneratedAt: time.Date(2026, 9, 9, 0, 0, 0, 0, time.UTC), Points: []telemetry.Point{}}, c.err
+}
+
 func (c contractReadiness) Ping(context.Context) error { return c.err }
 
 func TestOpenAPIRoutesMatchApplication(t *testing.T) {
@@ -49,7 +56,7 @@ func TestOpenAPIRoutesMatchApplication(t *testing.T) {
 			documented[method+" "+path] = true
 		}
 	}
-	handler := httpapi.NewRouter(config.Config{}, contractReadiness{}, NewHandler(nil, NewService(&fakeRepository{})))
+	handler := httpapi.NewRouter(config.Config{}, contractReadiness{}, NewHandler(nil, NewService(&fakeRepository{})), telemetry.Handler{Reader: contractTelemetry{}})
 	actual := map[string]bool{}
 	routes, ok := handler.(chi.Routes)
 	if !ok {
@@ -76,19 +83,25 @@ func TestOpenAPIHTTPResponses(t *testing.T) {
 		Times: []int{241, 228, 255, 249, 235}, TotalRounds: 5, AverageMs: 241, CreatedAt: createdAt,
 	}
 	tests := []struct {
-		name      string
-		target    string
-		body      string // A nonempty body selects POST; other cases use GET.
-		status    int
-		code      string
-		repo      fakeRepository
-		healthErr error
+		name         string
+		target       string
+		body         string // A nonempty body selects POST; other cases use GET.
+		status       int
+		code         string
+		repo         fakeRepository
+		healthErr    error
+		telemetryErr error
+		noCookie     bool
 	}{
 		{name: "health alias", target: "/health", status: 200},
+		{name: "system statistics", target: "/system/statistics?period=1h", status: 200},
+		{name: "invalid system filter", target: "/system/statistics?period=bad", status: 400, code: "telemetry_invalid_filter"},
+		{name: "system statistics unavailable", target: "/system/statistics", status: 503, code: "telemetry_unavailable", telemetryErr: errors.New("private storage failure")},
 		{name: "liveness", target: "/health/live", status: 200},
 		{name: "readiness", target: "/health/ready", status: 200},
 		{name: "database unavailable", target: "/health/ready", status: 503, healthErr: errors.New("offline")},
 		{name: "anonymous score", target: "/scores", body: validBody, status: 201},
+		{name: "cookie handshake", target: "/scores", body: validBody, status: 400, code: "score_player_cookie_required", noCookie: true},
 		{name: "trimmed name", target: "/scores", body: strings.Replace(validBody, `"missclicks":0`, `"missclicks":0,"displayName":"  David  "`, 1), status: 201},
 		{name: "optional missclicks", target: "/scores", body: strings.Replace(validBody, `,"missclicks":0`, "", 1), status: 201},
 		{name: "null optional fields", target: "/scores", body: strings.Replace(validBody, `"missclicks":0`, `"missclicks":null,"displayName":null`, 1), status: 201},
@@ -104,6 +117,11 @@ func TestOpenAPIHTTPResponses(t *testing.T) {
 		{name: "long name", target: "/scores", body: strings.Replace(validBody, `"missclicks":0`, `"displayName":"1234567890123456789012345"`, 1), status: 400, code: "score_display_name_too_long"},
 		{name: "write unavailable", target: "/scores", body: validBody, status: 500, code: "internal_error", repo: fakeRepository{err: errors.New("offline")}},
 		{name: "empty leaderboard", target: "/scores/leaderboard", status: 200},
+		{name: "empty statistics", target: "/scores/statistics", status: 200},
+		{name: "grouped statistics", target: "/scores/statistics?group=players&scope=mine&period=7d&minGames=2&maxAverageMs=500", status: 200},
+		{name: "invalid statistics filter", target: "/scores/statistics?minAverageMs=500&maxAverageMs=100", status: 400, code: "score_invalid_filter"},
+		{name: "statistics unavailable", target: "/scores/statistics", status: 500, code: "internal_error", repo: fakeRepository{leaderboardErr: errors.New("offline")}},
+		{name: "oversized JSON", target: "/scores", body: `{"displayName":"` + strings.Repeat("x", 9000) + `"}`, status: 413, code: "request_too_large"},
 		{name: "leaderboard entries", target: "/scores/leaderboard?limit=5&sort=bestMs:worst,missclicks:best", status: 200, repo: fakeRepository{entries: []LeaderboardEntry{
 			{Rank: 1, ScoreID: 1, AverageMs: 241, BestMs: 228, TotalRounds: 5, CreatedAt: createdAt},
 		}}},
@@ -126,7 +144,9 @@ func TestOpenAPIHTTPResponses(t *testing.T) {
 				if tc.body != "" {
 					request.Header.Set("Content-Type", "application/json")
 				}
-				request.AddCookie(&http.Cookie{Name: httpapi.AnonymousPlayerCookieName, Value: testPlayerID})
+				if !tc.noCookie {
+					request.AddCookie(&http.Cookie{Name: httpapi.AnonymousPlayerCookieName, Value: testPlayerID})
+				}
 				return request
 			}
 			// Validate a separate request: schema defaults/body decoding must never
@@ -137,13 +157,13 @@ func TestOpenAPIHTTPResponses(t *testing.T) {
 				t.Fatal(err)
 			}
 			input := &openapi3filter.RequestValidationInput{Request: request, Route: route, PathParams: pathParams}
-			if tc.status != http.StatusBadRequest {
+			if tc.status != http.StatusBadRequest && tc.status != http.StatusRequestEntityTooLarge {
 				if err := openapi3filter.ValidateRequest(t.Context(), input); err != nil {
 					t.Fatalf("valid request violates contract: %v", err)
 				}
 			}
 			tc.repo.createdAt = createdAt
-			handler := httpapi.NewRouter(config.Config{}, contractReadiness{tc.healthErr}, NewHandler(nil, NewService(&tc.repo)))
+			handler := httpapi.NewRouter(config.Config{}, contractReadiness{tc.healthErr}, NewHandler(nil, NewService(&tc.repo)), telemetry.Handler{Reader: contractTelemetry{tc.telemetryErr}})
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, newRequest())
 			if response.Code != tc.status {
@@ -172,6 +192,10 @@ func TestOpenAPIHTTPResponses(t *testing.T) {
 	for path, item := range document.Paths.Map() {
 		for method, operation := range item.Operations() {
 			for status := range operation.Responses.Map() {
+				// These originate in NGINX and are exercised in proxy E2E tests.
+				if operation.Responses.Value(status).Value.Extensions["x-edge-response"] == true {
+					continue
+				}
 				if key := method + " " + path + " " + status; !covered[key] {
 					t.Errorf("missing HTTP contract example: %s", key)
 				}

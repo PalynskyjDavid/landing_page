@@ -1,6 +1,22 @@
 **/node_modules
 **/dist
 **/.env
+# Local credentials, private keys and database backups must not enter a checkpoint.
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+*.dump
+*.backup
+*.sql.gz
+*.log
+**/coverage/
+**/.nyc_output/
 backend-go/bin
 backend-go/tmp
 backend-go/coverage
@@ -86,5 +102,4 @@ frontend/playwright-report/
 
 # # Diagnostic reports (https://nodejs.org/api/report.html)
 # report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-
 

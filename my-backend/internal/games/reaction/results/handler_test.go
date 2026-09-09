@@ -57,6 +57,83 @@ func TestHandleCreateReturnsServerDerivedValues(t *testing.T) {
 	}
 }
 
+func TestHandleCreateRejectsExtraOrOversizedJSONBeforeWriting(t *testing.T) {
+	const valid = `{"submissionId":"550e8400-e29b-41d4-a716-446655440000","times":[1,2,3,4,5]}`
+	for _, test := range []struct {
+		name   string
+		body   string
+		status int
+		code   string
+	}{
+		{"second object", valid + `{}`, http.StatusBadRequest, "invalid_json"},
+		{"trailing garbage", valid + `invalid`, http.StatusBadRequest, "invalid_json"},
+		{"oversized JSON", `{"displayName":"` + strings.Repeat("a", 9000) + `"}`, http.StatusRequestEntityTooLarge, "request_too_large"},
+		{"oversized trailing whitespace", valid + strings.Repeat(" ", 9000), http.StatusRequestEntityTooLarge, "request_too_large"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := &fakeRepository{}
+			handler := NewHandler(nil, NewService(repo))
+			request := httptest.NewRequest(http.MethodPost, "/scores", strings.NewReader(test.body))
+			response := httptest.NewRecorder()
+			serveCreateAsTestPlayer(handler, response, request)
+			if response.Code != test.status || repo.createCalls != 0 {
+				t.Fatalf("status=%d writes=%d body=%s", response.Code, repo.createCalls, response.Body.String())
+			}
+			var envelope httpapi.ErrorEnvelope
+			if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+				t.Fatal(err)
+			}
+			if envelope.Error.Code != test.code {
+				t.Fatalf("error code=%q, want %q", envelope.Error.Code, test.code)
+			}
+		})
+	}
+}
+
+func TestHandleCreateRequiresCookieBeforeWriting(t *testing.T) {
+	for _, rawCookie := range []string{"", "invalid-cookie"} {
+		t.Run("incoming cookie: "+rawCookie, func(t *testing.T) {
+			repo := &fakeRepository{}
+			handler := NewHandler(nil, NewService(repo))
+			api := httpapi.AnonymousPlayer(false)(http.HandlerFunc(handler.handleCreate))
+			const body = `{"submissionId":"550e8400-e29b-41d4-a716-446655440000","times":[1,2,3,4,5]}`
+			var cookie *http.Cookie
+			// Losing the cookie-only response is safe: repeated cookieless calls
+			// must never reach the repository.
+			for range 2 {
+				request := httptest.NewRequest(http.MethodPost, "/scores", strings.NewReader(body))
+				if rawCookie != "" {
+					request.AddCookie(&http.Cookie{Name: httpapi.AnonymousPlayerCookieName, Value: rawCookie})
+				}
+				response := httptest.NewRecorder()
+				api.ServeHTTP(response, request)
+				if response.Code != http.StatusBadRequest || repo.createCalls != 0 {
+					t.Fatalf("cookie must be established before writing: status=%d writes=%d", response.Code, repo.createCalls)
+				}
+				var envelope httpapi.ErrorEnvelope
+				if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+					t.Fatal(err)
+				}
+				if envelope.Error.Code != "score_player_cookie_required" {
+					t.Fatalf("unexpected error: %#v", envelope)
+				}
+				cookies := response.Result().Cookies()
+				if len(cookies) != 1 {
+					t.Fatal("expected a replacement player cookie")
+				}
+				cookie = cookies[0]
+			}
+			request := httptest.NewRequest(http.MethodPost, "/scores", strings.NewReader(body))
+			request.AddCookie(cookie)
+			response := httptest.NewRecorder()
+			api.ServeHTTP(response, request)
+			if response.Code != http.StatusCreated || repo.createCalls != 1 {
+				t.Fatalf("established cookie should allow one write: status=%d writes=%d", response.Code, repo.createCalls)
+			}
+		})
+	}
+}
+
 func TestHandleCreateRejectsClientCalculatedAverage(t *testing.T) {
 	repo := &fakeRepository{}
 	handler := NewHandler(nil, NewService(repo))

@@ -1,205 +1,304 @@
 import { useState } from "react";
-import { useLeaderboardQuery } from "../hooks/useLeaderboardQuery.js";
+import { useStatsQuery } from "../hooks/useStatsQuery.js";
+import { defaultStatisticsFilters, statisticsParams } from "../lib/statisticsFilters.js";
+import PlayerAveragesChart from "./PlayerAveragesChart.jsx";
 
-const DEFAULT_LEADERBOARD_LIMIT = 10;
-const LEADERBOARD_LIMITS = [5, 10, 20];
-
-const SORT_FIELDS = [
-  { value: "averageMs", label: "Average" },
-  { value: "bestMs", label: "Best reaction" },
-  { value: "missclicks", label: "Misclicks" },
+const columns = [
+  ["averageMs", "Average"],
+  ["bestMs", "Best reaction"],
+  ["missclicks", "Misclicks"],
+  ["games", "Games played"],
+  ["createdAt", "Date"],
 ];
-
-const SORT_DIRECTIONS = [
-  { value: "best", label: "Best" },
-  { value: "worst", label: "Worst" },
+const ranges = [
+  ["Average reaction (ms)", "minAverageMs", "maxAverageMs"],
+  ["Best reaction (ms)", "minBestMs", "maxBestMs"],
+  ["Misclicks per game", "minMissclicks", "maxMissclicks"],
 ];
-
-const INITIAL_SORT = {
-  primary: { field: "averageMs", direction: "best" },
-  secondary: { field: "missclicks", direction: "best" },
-};
 
 export default function ReactionLeaderboard() {
-  const [sort, setSort] = useState(INITIAL_SORT);
-  const [limit, setLimit] = useState(DEFAULT_LEADERBOARD_LIMIT);
-  const leaderboard = useLeaderboardQuery(limit, [sort.primary, sort.secondary]);
-  const isShowingStaleData = leaderboard.isFetching && leaderboard.data !== undefined;
-
-  const changeSortField = (level, field) => {
-    setSort((current) => {
-      const otherLevel = level === "primary" ? "secondary" : "primary";
-
-      if (field === current[otherLevel].field) {
-        return {
-          ...current,
-          [level]: { ...current[level], field },
-          [otherLevel]: { ...current[otherLevel], field: current[level].field },
-        };
-      }
-
-      return {
-        ...current,
-        [level]: { ...current[level], field },
-      };
+  const [draft, setDraft] = useState(defaultStatisticsFilters);
+  const [applied, setApplied] = useState(defaultStatisticsFilters);
+  const stats = useStatsQuery(statisticsParams(applied));
+  const stale = stats.isFetching && stats.data !== undefined;
+  const displayed = stats.data?.selection ?? statisticsParams(applied);
+  const grouped = displayed.group === "players";
+  const entries = stats.data?.entries ?? [];
+  const summary = stats.data?.summary;
+  const change = (field, value) =>
+    setDraft((current) => {
+      const next = { ...current, [field]: value };
+      if (field === "primary" && value === current.secondary) next.secondary = current.primary;
+      if (field === "secondary" && value === current.primary) next.primary = current.secondary;
+      return next;
     });
+  const apply = (event) => {
+    event.preventDefault();
+    setApplied({ ...draft });
   };
-
-  const changeSortDirection = (level, direction) => {
-    setSort((current) => ({
-      ...current,
-      [level]: { ...current[level], direction },
-    }));
-  };
-
-  const columnHeading = (field, label) => {
-    if (sort.primary.field === field) {
-      return `1. ${label} ${sort.primary.direction === "best" ? "↑" : "↓"}`;
-    }
-    if (sort.secondary.field === field) {
-      return `2. ${label} ${sort.secondary.direction === "best" ? "↑" : "↓"}`;
-    }
-
+  const heading = (field, label) => {
+    const order = displayed.sort.split(",").map((pair) => pair.split(":"));
+    const priority = order.findIndex(([column]) => column === field);
+    if (priority >= 0)
+      return `${priority + 1}. ${label} ${order[priority][1] === "best" ? "↑" : "↓"}`;
     return label;
   };
 
   return (
-    <section className="mx-auto my-[2dvh] w-[98%] max-w-[600px]">
-      <div className="relative flex min-h-9 items-center justify-center">
-        <h2 className="text-center">Leaderboard</h2>
-
-        <button
-          type="button"
-          className="absolute right-0 rounded p-2 text-[rgb(var(--fg))] transition-colors hover:bg-[rgb(var(--muted))] disabled:cursor-wait disabled:opacity-60"
-          aria-label={isShowingStaleData ? "Refreshing leaderboard" : "Refresh leaderboard"}
-          title={isShowingStaleData ? "Refreshing leaderboard" : "Refresh leaderboard"}
-          disabled={leaderboard.isFetching}
-          onClick={() => leaderboard.refetch()}
-        >
-          <svg
-            aria-hidden="true"
-            className={`h-5 w-5 ${leaderboard.isFetching ? "animate-spin" : ""}`}
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <path
-              d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
+    <section aria-label="Score statistics">
+      <form className="statistics-filters" onSubmit={apply}>
+        <div className="statistics-filter-grid">
+          <label>
+            View
+            <select value={draft.group} onChange={(e) => change("group", e.target.value)}>
+              <option value="games">Individual games</option>
+              <option value="players">Grouped by player</option>
+            </select>
+          </label>
+          <label>
+            Players
+            <select value={draft.scope} onChange={(e) => change("scope", e.target.value)}>
+              <option value="everyone">Everyone</option>
+              <option value="mine">My scores</option>
+            </select>
+          </label>
+          <label>
+            Period
+            <select value={draft.period} onChange={(e) => change("period", e.target.value)}>
+              <option value="all">All time</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+              <option value="custom">Custom dates (UTC)</option>
+            </select>
+          </label>
+          <label>
+            Show
+            <select value={draft.limit} onChange={(e) => change("limit", e.target.value)}>
+              {[5, 10, 20].map((limit) => (
+                <option key={limit} value={limit}>
+                  Top {limit}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Player name
+            <input
+              maxLength={24}
+              value={draft.player}
+              onChange={(e) => change("player", e.target.value)}
+              placeholder="Contains…"
             />
-          </svg>
+          </label>
+          {draft.group === "players" && (
+            <label>
+              Minimum games per player
+              <input
+                type="number"
+                min="1"
+                max="1000000"
+                value={draft.minGames}
+                onChange={(e) => change("minGames", e.target.value)}
+              />
+            </label>
+          )}
+          {draft.period === "custom" && (
+            <>
+              <label>
+                From date (UTC)
+                <input
+                  type="date"
+                  value={draft.from}
+                  onChange={(e) => change("from", e.target.value)}
+                />
+              </label>
+              <label>
+                Through date (UTC)
+                <input
+                  type="date"
+                  value={draft.to}
+                  onChange={(e) => change("to", e.target.value)}
+                />
+              </label>
+            </>
+          )}
+        </div>
+        <div className="statistics-sort-grid">
+          {["primary", "secondary"].map((level, index) => (
+            <fieldset key={level}>
+              <legend>Sort {index + 1}</legend>
+              <label>
+                Column
+                <select value={draft[level]} onChange={(e) => change(level, e.target.value)}>
+                  {columns.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Order
+                <select
+                  value={draft[`${level}Direction`]}
+                  onChange={(e) => change(`${level}Direction`, e.target.value)}
+                >
+                  <option value="best">Lowest / oldest first</option>
+                  <option value="worst">Highest / newest first</option>
+                </select>
+              </label>
+            </fieldset>
+          ))}
+        </div>
+        <details>
+          <summary>Reaction time and misclick ranges</summary>
+          <p className="statistics-note">
+            Ranges filter individual games before player averages are calculated.
+          </p>
+          <div className="statistics-filter-grid">
+            {ranges.map(([label, minimum, maximum]) => (
+              <fieldset key={minimum}>
+                <legend>{label}</legend>
+                <label>
+                  Minimum
+                  <input
+                    aria-label={`Minimum ${label}`}
+                    type="number"
+                    min="0"
+                    max="2147483647"
+                    value={draft[minimum]}
+                    onChange={(e) => change(minimum, e.target.value)}
+                  />
+                </label>
+                <label>
+                  Maximum
+                  <input
+                    aria-label={`Maximum ${label}`}
+                    type="number"
+                    min="0"
+                    max="2147483647"
+                    value={draft[maximum]}
+                    onChange={(e) => change(maximum, e.target.value)}
+                  />
+                </label>
+              </fieldset>
+            ))}
+          </div>
+        </details>
+        <div className="statistics-actions">
+          <button className="ui-btn ui-surface-inverse" type="submit">
+            Apply filters
+          </button>
+          <button
+            className="ui-btn"
+            type="button"
+            onClick={() => {
+              setDraft(defaultStatisticsFilters);
+              setApplied(defaultStatisticsFilters);
+            }}
+          >
+            Reset filters
+          </button>
+          <span className="statistics-note">Apply sends one request for the selected filters.</span>
+        </div>
+      </form>
+
+      <div className="statistics-results-header">
+        <h2>Leaderboard</h2>
+        <button
+          className="ui-btn"
+          type="button"
+          aria-label="Refresh leaderboard"
+          disabled={stats.isFetching}
+          onClick={() => stats.refetch()}
+        >
+          <span aria-hidden="true">↻</span> {stats.isFetching ? "Refreshing…" : "Refresh"}
         </button>
       </div>
-
-      <p className="min-h-5 text-center text-sm" aria-live="polite">
-        {isShowingStaleData ? "Stale data — refreshing…" : ""}
+      <p className="statistics-status" role="status">
+        {stats.isPlaceholderData
+          ? "Previous selection — refreshing…"
+          : stale
+            ? "Stale data — refreshing…"
+            : stats.isFetching
+              ? "Loading statistics…"
+              : ""}
       </p>
-
-      <div className="flex flex-col gap-3 my-3" aria-label="Leaderboard sorting">
-        <label className="flex items-center justify-end gap-2">
-          <span>Show</span>
-          <select
-            className="w-24 rounded border border-transparent bg-[rgb(var(--bg))] px-2 py-1 text-[rgb(var(--fg))] transition-colors hover:border-[rgb(var(--border))] focus:border-[rgb(var(--border))]"
-            value={limit}
-            onChange={(event) => setLimit(Number(event.target.value))}
-          >
-            {LEADERBOARD_LIMITS.map((option) => (
-              <option key={option} value={option}>
-                Top {option}
-              </option>
+      {stats.isError && <p role="alert">Could not load statistics: {stats.error.message}</p>}
+      {stats.data && (
+        <div aria-busy={stale} className={stale ? "statistics-stale" : ""}>
+          <dl className="statistics-summary" aria-label="Filtered summary">
+            {[
+              ["Matching games", summary.games],
+              ["Players", summary.players],
+              ["Average game", summary.averageMs === null ? "—" : `${summary.averageMs} ms`],
+              [
+                "Best game average",
+                summary.bestAverageMs === null ? "—" : `${summary.bestAverageMs} ms`,
+              ],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
             ))}
-          </select>
-        </label>
-
-        {[
-          { level: "primary", priority: 1 },
-          { level: "secondary", priority: 2 },
-        ].map(({ level, priority }) => (
-          <div key={level} className="grid grid-cols-[2rem_10rem_1fr] items-center gap-3">
-            <strong className="text-right">{priority}.</strong>
-
-            <label className="flex items-center justify-between gap-2">
-              <span>Order</span>
-              <select
-                className="w-24 rounded border border-transparent bg-[rgb(var(--bg))] px-2 py-1 text-[rgb(var(--fg))] transition-colors hover:border-[rgb(var(--border))] focus:border-[rgb(var(--border))]"
-                value={sort[level].direction}
-                onChange={(event) => changeSortDirection(level, event.target.value)}
-              >
-                {SORT_DIRECTIONS.map((direction) => (
-                  <option key={direction.value} value={direction.value}>
-                    {direction.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex items-center gap-2">
-              <span>Column</span>
-              <select
-                className="w-36 rounded border border-transparent bg-[rgb(var(--bg))] px-2 py-1 text-[rgb(var(--fg))] transition-colors hover:border-[rgb(var(--border))] focus:border-[rgb(var(--border))]"
-                value={sort[level].field}
-                onChange={(event) => changeSortField(level, event.target.value)}
-              >
-                {SORT_FIELDS.map((field) => (
-                  <option key={field.value} value={field.value}>
-                    {field.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        ))}
-      </div>
-
-      {leaderboard.isPending && <p className="min-h-32">Loading leaderboard...</p>}
-
-      {leaderboard.isError && (
-        <p role="alert">Could not load leaderboard: {leaderboard.error.message}</p>
-      )}
-
-      {leaderboard.isSuccess && leaderboard.data.entries.length === 0 && (
-        <p>No scores yet. Finish a game to become the first entry.</p>
-      )}
-
-      {leaderboard.isSuccess && leaderboard.data.entries.length > 0 && (
-        <div
-          className={`overflow-x-auto transition-opacity ${isShowingStaleData ? "opacity-60" : "opacity-100"}`}
-          aria-busy={isShowingStaleData}
-        >
-          <table className="w-full table-fixed">
-            <thead>
-              <tr>
-                <th className="w-[12%]" scope="col">
-                  Rank
-                </th>
-                <th className="w-[24%]" scope="col">
-                  Player
-                </th>
-                <th className="w-[22%]" scope="col">
-                  {columnHeading("averageMs", "Average")}
-                </th>
-                <th className="w-[20%]" scope="col">
-                  {columnHeading("bestMs", "Best")}
-                </th>
-                <th className="w-[22%]" scope="col">
-                  {columnHeading("missclicks", "Misclicks")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {leaderboard.data.entries.map((entry) => (
-                <tr key={entry.scoreId}>
-                  <td>{entry.rank}</td>
-                  <td>{entry.displayName || "Anonymous"}</td>
-                  <td>{entry.averageMs} ms</td>
-                  <td>{entry.bestMs} ms</td>
-                  <td>{entry.missclicks}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          </dl>
+          <p className="statistics-note">
+            Summary covers all matching games, not just the displayed Top {displayed.limit}.{" "}
+            {grouped
+              ? "Each row is one player; misclicks are averaged per game."
+              : "Each row is one five-round game."}
+          </p>
+          {entries.length === 0 ? (
+            <p>No scores match these filters. Play a game or widen the filters.</p>
+          ) : (
+            <>
+              {grouped && <PlayerAveragesChart entries={entries} />}
+              <div className="statistics-table-scroll">
+                <table>
+                  <caption>
+                    {grouped ? "Players ranked using their matching games" : "Matching games"} — Top{" "}
+                    {displayed.limit}
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Rank</th>
+                      <th scope="col">Player</th>
+                      <th scope="col">{heading("averageMs", "Average")}</th>
+                      <th scope="col">{heading("bestMs", "Best")}</th>
+                      <th scope="col">
+                        {heading("missclicks", grouped ? "Misclicks/game" : "Misclicks")}
+                      </th>
+                      {grouped && <th scope="col">{heading("games", "Games")}</th>}
+                      <th scope="col">
+                        {heading("createdAt", grouped ? "Latest game" : "Saved at")} (UTC)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entries.map((entry) => (
+                      <tr key={entry.scoreId}>
+                        <td>{entry.rank}</td>
+                        <td>
+                          {entry.displayName ||
+                            (grouped ? `Anonymous #${entry.scoreId}` : "Anonymous")}
+                        </td>
+                        <td>{entry.averageMs} ms</td>
+                        <td>{entry.bestMs} ms</td>
+                        <td>{Number(entry.missclicks.toFixed(2))}</td>
+                        {grouped && <td>{entry.games}</td>}
+                        <td>
+                          <time dateTime={entry.createdAt}>
+                            {new Date(entry.createdAt).toISOString().slice(0, 16).replace("T", " ")}
+                          </time>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
       )}
     </section>

@@ -57,6 +57,9 @@ jobs:
       - name: Run the shared local quality gate
         run: task check
 
+      - name: Check dependency and Go standard-library vulnerabilities
+        run: task security:check
+
   postgres:
     name: PostgreSQL migrations and integration tests
     runs-on: ubuntu-24.04
@@ -147,7 +150,7 @@ jobs:
 
       # Compose, migrations, API/frontend startup, and cleanup use the local wrapper.
       # This job has its own database, separate from the postgres job's service.
-      - name: Run the four full-stack scenarios
+      - name: Build API, web and collector images and run full-stack browser scenarios
         run: task test:e2e KEEP_TEST_DB=false
 
       - name: Upload Playwright report and failure evidence

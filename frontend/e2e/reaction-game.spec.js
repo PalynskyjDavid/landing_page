@@ -5,10 +5,11 @@ test("a completed game is saved and survives a reload", async ({ page }) => {
   const playerName = "E2E Player";
 
   await test.step("Open the game with the empty baseline", async () => {
-    await page.goto("/game");
+    await page.goto("/statistics");
     await expect(
-      page.getByText("No scores yet. Finish a game to become the first entry."),
+      page.getByText("No scores match these filters. Play a game or widen the filters."),
     ).toBeVisible();
+    await page.getByRole("link", { name: "Play a game", exact: true }).click();
   });
 
   await test.step("Play five rounds", async () => {
@@ -25,6 +26,7 @@ test("a completed game is saved and survives a reload", async ({ page }) => {
     await page.getByLabel("Display name (optional)").fill(playerName);
     await page.getByRole("button", { name: "Save score", exact: true }).click();
     await expect(page.getByRole("button", { name: "Score saved", exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "View statistics and leaderboard" }).click();
     await expect(page.getByRole("cell", { name: playerName, exact: true })).toBeVisible();
   });
 
@@ -39,6 +41,8 @@ test("a completed game is saved and survives a reload", async ({ page }) => {
 // page.request shares the page's cookies, so both requests identify the same player.
 // These real API calls bypass the frontend's form/retry/outbox logic.
 test("identical retries reuse a score; changed data conflicts", async ({ page }) => {
+  // Establish the player cookie before direct API writes (no frontend handshake here).
+  expect((await page.request.get(`${backendURL}/scores/leaderboard`)).status()).toBe(200);
   // A fixed UUID is fine here because our fixture resets the DB before each test.
   const payload = {
     submissionId: "00000000-0000-4000-8000-000000000801",
@@ -60,7 +64,7 @@ test("identical retries reuse a score; changed data conflicts", async ({ page })
   expect(conflict.status()).toBe(409); // Same UUID, DIFFERENT data is a conflict.
   expect(await conflict.json()).toMatchObject({ error: { code: "score_submission_conflict" } });
 
-  await page.goto("/game");
+  await page.goto("/statistics");
   await expect(page.getByRole("cell", { name: "Retry example", exact: true })).toBeVisible();
   await expect(page.getByRole("table").getByRole("row")).toHaveCount(2);
 });
@@ -88,6 +92,7 @@ test("a queued score survives reload and saves after recovery", async ({ page })
   await expect(page.getByRole("complementary", { name: "Connection simulation" })).toBeVisible();
   // There are two Restore buttons (banner and lab), so scope to the lab.
   await lab.getByRole("button", { name: "Restore connection", exact: true }).click();
+  await page.getByRole("link", { name: "View statistics and leaderboard" }).click();
   await expect(page.getByRole("cell", { name: "Offline example", exact: true })).toBeVisible({
     timeout: 30_000,
   });
@@ -100,6 +105,7 @@ test("a queued score survives reload and saves after recovery", async ({ page })
 // API validation normally rejects these BEFORE an INSERT reaches PostgreSQL.
 // To prove a SQL CHECK constraint itself works, use a direct-DB integration test.
 test("invalid score requests return useful errors and save nothing", async ({ page }) => {
+  expect((await page.request.get(`${backendURL}/scores/leaderboard`)).status()).toBe(200);
   const valid = {
     submissionId: "00000000-0000-4000-8000-000000000802",
     times: [200, 210, 220, 230, 240],

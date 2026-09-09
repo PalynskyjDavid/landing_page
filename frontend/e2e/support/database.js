@@ -22,13 +22,17 @@ const composeArgs = [
   path.join(repositoryDir, "compose.e2e.yml"),
 ];
 
-export function runCommand(command, args, { capture = false, input, env = process.env } = {}) {
+export function runCommand(
+  command,
+  args,
+  { capture = false, input, env = process.env, timeout = 240_000 } = {},
+) {
   const result = spawnSync(command, args, {
     cwd: repositoryDir,
     env,
     encoding: "utf8",
     windowsHide: true,
-    timeout: 240_000,
+    timeout,
     stdio: [input === undefined ? "inherit" : "pipe", capture ? "pipe" : "inherit", "inherit"],
     input,
   });
@@ -37,7 +41,7 @@ export function runCommand(command, args, { capture = false, input, env = proces
   return result.stdout?.trim() ?? "";
 }
 
-function compose(args, options) {
+export function compose(args, options) {
   return runCommand("docker", [...composeArgs, ...args], options);
 }
 
@@ -77,27 +81,38 @@ export function assertDatabaseLock(token) {
     throw new Error("E2E database lock does not belong to this run.");
 }
 
-export function assertOwnedContainer(container) {
+export function assertOwnedContainer(container, service = "db") {
   const labels = container.Config?.Labels ?? {};
   const env = container.Config?.Env ?? [];
   if (
     labels["com.docker.compose.project"] !== composeProject ||
-    labels["com.docker.compose.service"] !== "db" ||
+    !["db", "api", "web", "collector"].includes(service) ||
+    labels["com.docker.compose.service"] !== service ||
     labels["landing-page.e2e"] !== "true" ||
-    !env.includes("POSTGRES_DB=reaction_e2e") ||
-    !env.includes("POSTGRES_USER=e2e_user")
+    (["web", "collector"].includes(service)
+      ? !env.includes(`LANDING_PAGE_RUNTIME=${service}-e2e`)
+      : !env.includes("POSTGRES_DB=reaction_e2e") || !env.includes("POSTGRES_USER=e2e_user"))
   )
     throw new Error("Refusing to operate on a container not owned by this E2E project.");
+  if (
+    ["api", "collector"].includes(service) &&
+    !env.includes(
+      "DATABASE_URL=postgresql://e2e_user:e2e_password@db:5432/reaction_e2e?sslmode=disable",
+    )
+  )
+    throw new Error("Refusing to operate on an API targeting a different database.");
 }
 
-function inspectContainer(required = false) {
-  const id = compose(["ps", "--all", "--quiet", "db"], { capture: true });
+export function inspectContainer(required = false, service = "db") {
+  const id = compose(["ps", "--all", "--quiet", service], { capture: true });
   if (!id) {
-    if (required) throw new Error("Test database is missing. Run task test:db:setup first.");
+    if (required)
+      throw new Error(`Test ${service} container is missing. Run task test:stack:setup first.`);
     return;
   }
   const [container] = JSON.parse(runCommand("docker", ["inspect", id], { capture: true }));
-  assertOwnedContainer(container);
+  assertOwnedContainer(container, service);
+  return container;
 }
 
 function inspectVolume() {
@@ -130,28 +145,41 @@ export function database(action, token) {
       // Reuse the same pinned migration task; explicit env takes precedence over .env.
       runCommand("task", ["db:migrate"], { env: { ...process.env, ...testEnvironment } });
       return database("reset", token);
-    case "reset":
-      console.info("Restoring the E2E data baseline (development data is not targeted).");
-      return compose(
-        [
-          "exec",
-          "-T",
-          "db",
-          "psql",
-          "-X",
-          "--username=e2e_user",
-          "--dbname=reaction_e2e",
-          "--set=ON_ERROR_STOP=1",
-        ],
-        {
-          input: readFileSync(path.join(frontendDir, "e2e", "baseline.sql"), "utf8"),
-        },
-      );
+    case "reset": {
+      // Discard the collector's in-memory queue before resetting stored counters.
+      // Otherwise an old batch could reappear in the freshly reset test DB.
+      const resumeCollector = inspectContainer(false, "collector")?.State?.Running;
+      if (resumeCollector) compose(["stop", "collector"]);
+      try {
+        console.info("Restoring the E2E data baseline (development data is not targeted).");
+        return compose(
+          [
+            "exec",
+            "-T",
+            "db",
+            "psql",
+            "-X",
+            "--username=e2e_user",
+            "--dbname=reaction_e2e",
+            "--set=ON_ERROR_STOP=1",
+          ],
+          {
+            input: readFileSync(path.join(frontendDir, "e2e", "baseline.sql"), "utf8"),
+          },
+        );
+      } finally {
+        if (resumeCollector)
+          compose(["up", "--detach", "--no-deps", "--wait", "--wait-timeout", "60", "collector"]);
+      }
+    }
     case "stop":
       return compose(["stop", "db"]);
     case "down":
-      console.info("Removing the owned landing-page-e2e container and disposable data volume.");
-      return compose(["down", "--volumes", "--timeout", "10"]);
+      inspectContainer(false, "collector");
+      inspectContainer(false, "api");
+      inspectContainer(false, "web");
+      console.info("Removing the owned landing-page-e2e containers and disposable data volume.");
+      return compose(["down", "--volumes", "--timeout", "15"]);
     default:
       throw new Error(`Unknown test database action: ${action}`);
   }

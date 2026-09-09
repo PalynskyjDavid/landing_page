@@ -15,13 +15,11 @@ type Registrar interface {
 	RegisterRoutes(r chi.Router)
 }
 
-// Add logger later
-// Add recoverer for easier debugging
-// Add timeout, throttle, check out limiter and other interesting capabilities
 func NewRouter(cfg config.Config, readinessChecker ReadinessChecker, registrars ...Registrar) http.Handler {
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
-	router.Use(middleware.RealIP)
+	router.Use(requestLog)
+	// Preserve the transport peer. Forwarded IP headers need an explicit trusted-proxy policy.
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.Timeout(30 * time.Second))
 

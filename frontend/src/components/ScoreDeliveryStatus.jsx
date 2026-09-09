@@ -4,6 +4,7 @@ const availabilityLabels = {
   checking: "Checking whether score storage is available…",
   recovering: "Connection restored. Sending queued scores…",
   unavailable: "Score storage is temporarily unavailable.",
+  rate_limited: "Saving is paused by the rate limit. Your queued scores will retry automatically.",
 };
 
 export default function ScoreDeliveryStatus() {

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { statsApi } from "../api/stats.js";
 
 export const statsKeys = {
@@ -9,7 +9,11 @@ export const statsKeys = {
 export function useStatsQuery(params = {}, options = {}) {
   return useQuery({
     queryKey: statsKeys.summary(params),
-    queryFn: ({ signal }) => statsApi.getStats(params, { signal }),
+    placeholderData: keepPreviousData,
+    queryFn: async ({ signal }) => ({
+      ...(await statsApi.getStats(params, { signal })),
+      selection: params,
+    }),
     ...options,
   });
 }

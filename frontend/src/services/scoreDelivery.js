@@ -16,6 +16,7 @@ function errorDetails(error) {
     message: error?.message ?? "Unknown delivery failure.",
     status: error?.status ?? null,
     code: error?.code ?? null,
+    retryAt: error?.status === 429 ? Date.now() + Math.max(1000, error.retryAfterMs ?? 5000) : null,
   };
 }
 
@@ -91,17 +92,28 @@ export function createScoreDelivery({
     return Math.round(probeDelayMs * (1 + jitter));
   }
 
-  function scheduleProbe() {
+  function scheduleProbe(delay = nextProbeDelay()) {
     if (!started || snapshot.pendingCount === 0 || probeTimer !== null) {
       return;
     }
 
-    const delayMs = nextProbeDelay();
+    const delayMs = Math.min(2147483647, Math.max(1, delay));
     publish({ nextProbeAt: Date.now() + delayMs });
     probeTimer = setTimeout(() => {
       probeTimer = null;
       void retryNow();
     }, delayMs);
+  }
+
+  function waitForCooldown(entries) {
+    const remaining = Math.max(
+      0,
+      ...entries.map((entry) => (entry.lastError?.retryAt ?? 0) - Date.now()),
+    );
+    if (remaining <= 0) return false;
+    publish({ availability: "rate_limited" });
+    scheduleProbe(remaining);
+    return true;
   }
 
   async function refreshPendingCount() {
@@ -143,6 +155,11 @@ export function createScoreDelivery({
           attemptCount: totalAttempts,
           lastError: serializedError,
         });
+
+        if (error.status === 429) {
+          publishSubmission(record.submissionId, { status: "queued", error: serializedError });
+          return "rate_limited";
+        }
 
         if (!isRetryableError(error)) {
           await outbox.markFailed(record.submissionId, {
@@ -186,12 +203,18 @@ export function createScoreDelivery({
 
     while (started) {
       const entries = await refreshPendingCount();
+      if (waitForCooldown(entries)) return;
       if (entries.length === 0) {
         publish({ availability: "healthy", nextProbeAt: null });
         return;
       }
 
       const outcome = await deliver(entries[0], !recovering);
+      if (outcome === "rate_limited") {
+        const pending = await refreshPendingCount();
+        waitForCooldown(pending);
+        return;
+      }
       if (outcome === "temporarily_unavailable" || outcome === "paused") {
         await refreshPendingCount();
         publish({ availability: "unavailable" });
@@ -231,15 +254,16 @@ export function createScoreDelivery({
     probePromise = (async () => {
       const entries = await refreshPendingCount();
       if (!started) return;
+      if (waitForCooldown(entries)) return;
       if (entries.length === 0) {
         publish({ availability: "healthy", systemError: null });
         return;
       }
-      publish({ availability: "checking", systemError: null });
-      await checkReadiness();
+      const wasRateLimited = entries.some((entry) => entry.lastError?.status === 429);
+      publish({ availability: wasRateLimited ? "healthy" : "checking", systemError: null });
+      if (!wasRateLimited) await checkReadiness();
       if (started) {
-        publish({ availability: "recovering" });
-        await drain({ recovering: true });
+        await drain({ recovering: !wasRateLimited });
       }
     })()
       .catch((error) => {

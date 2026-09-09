@@ -93,7 +93,7 @@ export function createScoreOutbox(databaseFactory = globalThis.indexedDB) {
           attemptCount: existing?.attemptCount ?? 0,
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
-          lastError: null,
+          lastError: existing?.lastError ?? null,
         };
 
         await requestResult(store.put(record));

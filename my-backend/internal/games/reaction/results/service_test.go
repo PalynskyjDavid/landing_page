@@ -20,6 +20,21 @@ type fakeRepository struct {
 	gotLeaderboardParams LeaderboardParams
 	entries              []LeaderboardEntry
 	leaderboardErr       error
+	statisticsParams     StatisticsParams
+	statisticsCalls      int
+	statisticsResult     *Statistics
+}
+
+func (r *fakeRepository) ReadStatistics(_ context.Context, params StatisticsParams) (*Statistics, error) {
+	r.statisticsCalls++
+	r.statisticsParams = params
+	if r.leaderboardErr != nil {
+		return nil, r.leaderboardErr
+	}
+	if r.statisticsResult != nil {
+		return r.statisticsResult, nil
+	}
+	return &Statistics{Entries: []StatisticsEntry{}}, nil
 }
 
 func (r *fakeRepository) ListLeaderboard(_ context.Context, params LeaderboardParams) ([]LeaderboardEntry, error) {

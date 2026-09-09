@@ -1,15 +1,20 @@
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { spawn } from "node:child_process";
-import { acquireDatabaseLock, database, runCommand } from "./database.js";
+import { acquireDatabaseLock, database } from "./database.js";
+import { backend } from "./backend.js";
+import { web } from "./web.js";
+import { collector } from "./collector.js";
 import { main } from "../../scripts/test-e2e.js";
 
 vi.mock("node:child_process", () => ({ spawn: vi.fn() }));
 vi.mock("./database.js", () => ({
   acquireDatabaseLock: vi.fn(),
   database: vi.fn(),
-  runCommand: vi.fn(),
 }));
+vi.mock("./backend.js", () => ({ backend: vi.fn() }));
+vi.mock("./web.js", () => ({ web: vi.fn() }));
+vi.mock("./collector.js", () => ({ collector: vi.fn() }));
 
 describe("E2E runner failure handling (no Docker required)", () => {
   let release;
@@ -42,7 +47,20 @@ describe("E2E runner failure handling (no Docker required)", () => {
   it("cleans up a successful run without printing failure logs", async () => {
     await expect(main()).resolves.toBe(0);
     expect(actions()).toEqual(["setup", "down"]);
-    expect(runCommand).toHaveBeenCalledOnce();
+    expect(backend.mock.calls.map(([action]) => action)).toEqual(["stop", "build", "up", "remove"]);
+    expect(web.mock.calls.map(([action]) => action)).toEqual(["stop", "build", "up", "remove"]);
+    expect(collector.mock.calls.map(([action]) => action)).toEqual([
+      "remove",
+      "build",
+      "up",
+      "remove",
+    ]);
+    expect(collector.mock.invocationCallOrder[0]).toBeLessThan(
+      database.mock.invocationCallOrder[0],
+    );
+    expect(collector.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      web.mock.invocationCallOrder.at(-1),
+    );
     expect(release).toHaveBeenCalledOnce();
   });
 
@@ -60,10 +78,10 @@ describe("E2E runner failure handling (no Docker required)", () => {
   });
 
   it("prints logs after a build failure, before removing the database", async () => {
-    runCommand.mockImplementation(() => {
-      throw new Error("Go build failed");
+    backend.mockImplementation((action) => {
+      if (action === "build") throw new Error("Image build failed");
     });
-    await expect(main()).rejects.toThrow("Go build failed");
+    await expect(main()).rejects.toThrow("Image build failed");
     expect(actions()).toEqual(["setup", "logs", "down"]);
     expect(spawn).not.toHaveBeenCalled();
     expect(release).toHaveBeenCalledOnce();
@@ -112,5 +130,65 @@ describe("E2E runner failure handling (no Docker required)", () => {
     vi.stubEnv("KEEP_TEST_DB", "yes");
     await expect(main()).rejects.toThrow("KEEP_TEST_DB must be true or false");
     expect(acquireDatabaseLock).not.toHaveBeenCalled();
+  });
+
+  it("still cleans up the DB when API cleanup fails", async () => {
+    backend.mockImplementation((action) => {
+      if (action === "remove") throw new Error("API cleanup failed");
+    });
+    await expect(main()).rejects.toThrow("API cleanup failed");
+    expect(actions()).toEqual(["setup", "down"]);
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("removes the API even when the database is kept", async () => {
+    vi.stubEnv("KEEP_TEST_DB", "true");
+    await expect(main()).resolves.toBe(0);
+    expect(backend).toHaveBeenLastCalledWith("remove", "test-lock");
+    expect(web).toHaveBeenLastCalledWith("remove", "test-lock");
+    expect(collector).toHaveBeenLastCalledWith("remove", "test-lock");
+    expect(actions()).toEqual(["setup"]);
+  });
+
+  it("cleans up API and DB even if web cleanup fails", async () => {
+    web.mockImplementation((action) => {
+      if (action === "remove") throw new Error("web cleanup failed");
+    });
+    await expect(main()).rejects.toThrow("web cleanup failed");
+    expect(backend).toHaveBeenLastCalledWith("remove", "test-lock");
+    expect(actions()).toEqual(["setup", "down"]);
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("does not launch Playwright if the web image cannot start", async () => {
+    web.mockImplementation((action) => {
+      if (action === "up") throw new Error("web health timeout");
+    });
+    await expect(main()).rejects.toThrow("web health timeout");
+    expect(web.mock.calls.map(([action]) => action)).toEqual([
+      "stop",
+      "build",
+      "up",
+      "logs",
+      "remove",
+    ]);
+    expect(spawn).not.toHaveBeenCalled();
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("collects API logs before removing it when startup fails", async () => {
+    backend.mockImplementation((action) => {
+      if (action === "up") throw new Error("API health timeout");
+    });
+    await expect(main()).rejects.toThrow("API health timeout");
+    expect(backend.mock.calls.map(([action]) => action)).toEqual([
+      "stop",
+      "build",
+      "up",
+      "logs",
+      "remove",
+    ]);
+    expect(spawn).not.toHaveBeenCalled();
+    expect(release).toHaveBeenCalledOnce();
   });
 });

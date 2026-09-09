@@ -2,6 +2,8 @@ package results
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -49,21 +51,46 @@ func NewHandler(logger *slog.Logger, service *Service) *Handler {
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Post("/scores", h.handleCreate)
 	r.Get("/scores/leaderboard", h.handleLeaderboard)
+	r.Get("/scores/statistics", h.handleStatistics)
 }
 
 func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 8*1024)
 	var request createRequest
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 
 	if err := decoder.Decode(&request); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			httpapi.WriteError(w, h.logger, apperror.New(http.StatusRequestEntityTooLarge, "request_too_large", "Score requests must not exceed 8 KiB.", err))
+			return
+		}
 		httpapi.WriteError(w, h.logger, apperror.BadRequest("invalid_json", "Invalid JSON body.", err))
+		return
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			httpapi.WriteError(w, h.logger, apperror.New(http.StatusRequestEntityTooLarge, "request_too_large", "Score requests must not exceed 8 KiB.", err))
+		} else {
+			httpapi.WriteError(w, h.logger, apperror.BadRequest("invalid_json", "Send exactly one JSON object.", err))
+		}
 		return
 	}
 
 	playerID, ok := httpapi.PlayerIDFromContext(r.Context())
 	if !ok {
 		httpapi.WriteError(w, h.logger, apperror.Internal("player_identity_missing", "Failed to identify player.", nil))
+		return
+	}
+
+	if !httpapi.PlayerCookieEstablished(r.Context()) {
+		httpapi.WriteError(w, h.logger, apperror.BadRequest(
+			"score_player_cookie_required",
+			"Allow the player cookie, then retry the same score submission.",
+			nil,
+		))
 		return
 	}
 
@@ -95,12 +122,42 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleLeaderboard(w http.ResponseWriter, r *http.Request) {
+	options, err := parseLeaderboardOptions(r)
+	if err != nil {
+		httpapi.WriteError(w, h.logger, err)
+		return
+	}
+	entries, err := h.service.Leaderboard(r.Context(), options)
+	if err != nil {
+		httpapi.WriteError(w, h.logger, err)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, leaderboardResponse{Entries: entries})
+}
+
+func (h *Handler) handleStatistics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	options, err := parseStatisticsOptions(r)
+	if err != nil {
+		httpapi.WriteError(w, h.logger, err)
+		return
+	}
+	playerID, _ := httpapi.PlayerIDFromContext(r.Context())
+	options.PlayerID = playerID
+	result, err := h.service.Statistics(r.Context(), options)
+	if err != nil {
+		httpapi.WriteError(w, h.logger, err)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, result)
+}
+
+func parseLeaderboardOptions(r *http.Request) (LeaderboardOptions, error) {
 	options := LeaderboardOptions{}
 	if rawLimit := r.URL.Query().Get("limit"); rawLimit != "" {
 		parsedLimit, err := strconv.Atoi(rawLimit)
 		if err != nil || parsedLimit < 1 || parsedLimit > maxLeaderboardLimit {
-			httpapi.WriteError(w, h.logger, apperror.BadRequest("score_invalid_limit", "limit must be between 1 and 50.", err))
-			return
+			return options, apperror.BadRequest("score_invalid_limit", "limit must be between 1 and 50.", err)
 		}
 		options.Limit = parsedLimit
 	}
@@ -119,11 +176,5 @@ func (h *Handler) handleLeaderboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	entries, err := h.service.Leaderboard(r.Context(), options)
-	if err != nil {
-		httpapi.WriteError(w, h.logger, err)
-		return
-	}
-
-	httpapi.WriteJSON(w, http.StatusOK, leaderboardResponse{Entries: entries})
+	return options, nil
 }
