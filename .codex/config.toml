@@ -1,0 +1,5 @@
+# Project-local defaults, loaded only when this repository is trusted.
+approval_policy = "on-request"
+approvals_reviewer = "auto_review"
+sandbox_mode = "workspace-write"
+

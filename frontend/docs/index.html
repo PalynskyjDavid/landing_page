@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reaction API documentation</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/docs/swagger-ui.css" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+  </head>
+  <body>
+    <header class="docs-notice">
+      <a href="/game">← Back to the game</a>
+      <h1>Reaction API documentation</h1>
+      <p>
+        Development tools. <strong>Try it out sends real requests</strong> to
+        <code id="api-target">the configured API</code>.
+      </p>
+      <p>
+        POST /scores can write to that API's database. Start with a health GET. A cookie-required
+        response means repeat the same score once; the first call did not save it.
+      </p>
+      <a href="/docs/openapi.json">View the OpenAPI JSON</a>
+    </header>
+    <main id="swagger-ui"></main>
+    <script src="/docs/swagger-ui-bundle.js"></script>
+    <script type="module" src="/docs/initializer.js"></script>
+  </body>
+</html>

@@ -1,0 +1,378 @@
+version: "3"
+
+vars:
+  BACKEND_DIR: my-backend
+  BACKEND_TOOLS_DIR: my-backend/tools
+  FRONTEND_DIR: frontend
+  GOVULNCHECK_VERSION: v1.7.0
+
+tasks:
+  default:
+    desc: Run the complete read-only quality check
+    cmds:
+      - task: check
+
+  check:
+    desc: Run formatting checks, linters, tests, and production builds
+    cmds:
+      - task: format:check
+      - task: lint
+      - task: test
+      - task: build
+
+  security:check:
+    desc: Query current npm and Go vulnerability databases (network required; does not upgrade packages)
+    cmds:
+      - task: frontend:audit
+      - task: backend:vuln
+      - task: backend:tools:vuln
+
+  frontend:audit:
+    desc: Audit all locked frontend dependencies, including development/build tools
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm audit
+
+  security:secrets:
+    desc: Scan all local Git refs and shareable working-tree files with pinned Gitleaks; redact reports
+    cmds:
+      - node frontend/scripts/security-scan.js secrets
+
+  security:images:
+    desc: Rebuild and scan local app image exports with pinned Grype; fail on high/critical findings; no publication
+    cmds:
+      - node frontend/scripts/security-scan.js images
+
+  backend:vuln:
+    desc: Scan reachable vulnerabilities in the canonical Go backend and its standard library
+    cmds:
+      - go -C "{{.BACKEND_DIR}}" run golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}} ./...
+
+  backend:tools:vuln:
+    desc: Scan reachable vulnerabilities in the pinned Tern migration tool
+    cmds:
+      - go -C "{{.BACKEND_TOOLS_DIR}}" run golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}} github.com/jackc/tern/v2
+
+  format:
+    desc: Rewrite backend and frontend files using their formatters
+    cmds:
+      - task: backend:format
+      - task: frontend:format
+
+  format:check:
+    desc: Report formatting differences without rewriting files
+    cmds:
+      - task: backend:format:check
+      - task: frontend:format:check
+
+  lint:
+    desc: Run backend and frontend static analysis
+    cmds:
+      - task: backend:lint
+      - task: frontend:lint
+
+  test:
+    desc: Run the current automated test suites
+    cmds:
+      - task: backend:test
+      - task: frontend:test
+
+  build:
+    desc: Build the backend and frontend
+    cmds:
+      - task: backend:build
+      - task: frontend:build
+
+  dev:setup:
+    desc: Install locked frontend dependencies, start local PostgreSQL, and apply pending migrations (no reset)
+    preconditions:
+      - sh: test -f .env
+        msg: Copy .env.example to .env and review the local database settings first.
+    cmds:
+      - npm ci --prefix "{{.FRONTEND_DIR}}"
+      - task: db:setup
+
+  backend:dev:
+    desc: Run the canonical Go API locally; Ctrl+C stops it, rerun after Go edits
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go run ./cmd/api
+
+  frontend:dev:
+    desc: Run React with Vite hot reload at http://localhost:5173
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm run dev -- --host localhost --port 5173 --strictPort
+
+  db:setup:
+    desc: Start PostgreSQL, wait until it is healthy, and apply all migrations
+    cmds:
+      - task: db:up
+      - task: db:migrate
+
+  db:backup:
+    desc: Back up the running local DB without changing it; SOURCE=e2e selects the isolated test DB
+    env:
+      BACKUP_SOURCE: '{{.SOURCE | default "development"}}'
+    cmds:
+      - node frontend/scripts/db-backup.js backup
+
+  db:restore:check:
+    desc: Restore a trusted local backup twice into disposable offline DBs and compare data; never overwrite an existing DB
+    requires:
+      vars: [FILE]
+    env:
+      BACKUP_FILE: '{{.FILE}}'
+    cmds:
+      - node frontend/scripts/db-backup.js restore-check
+
+  test:db:setup:
+    desc: Start isolated E2E PostgreSQL, migrate it, and RESET its data to the baseline
+    cmds:
+      - node frontend/scripts/test-db.js setup
+
+  backend:image:build:
+    desc: Build the canonical Go runtime image locally; do not publish it
+    cmds:
+      - node frontend/scripts/test-stack.js api:build
+
+  frontend:image:build:
+    desc: Build the production React/NGINX image locally; do not publish it
+    cmds:
+      - node frontend/scripts/test-stack.js web:build
+
+  collector:image:build:
+    desc: Build the private telemetry collector image without resetting data or publishing it
+    cmds:
+      - node frontend/scripts/test-stack.js collector:build
+
+  test:collector:up:
+    desc: Start or replace the collector beside the running isolated test web container
+    cmds:
+      - node frontend/scripts/test-stack.js collector:up
+
+  test:collector:stop:
+    desc: Stop the isolated collector (best-effort metrics may have gaps)
+    cmds:
+      - node frontend/scripts/test-stack.js collector:stop
+
+  test:web:up:
+    desc: Start or replace the test web container with its latest built image; preserve DB data
+    cmds:
+      - node frontend/scripts/test-stack.js web:up
+
+  test:web:stop:
+    desc: Stop the isolated web container and its telemetry sidecar
+    cmds:
+      - node frontend/scripts/test-stack.js web:stop
+
+  test:stack:setup:
+    desc: RESET isolated test DB, migrate, build API/web/collector images, and start the test stack
+    cmds:
+      - node frontend/scripts/test-stack.js setup
+
+  test:stack:stop:
+    desc: Stop the isolated web/API/DB/collector containers, preserving test data
+    cmds:
+      - node frontend/scripts/test-stack.js stop
+
+  test:stack:up:
+    desc: Resume the already-migrated isolated stack without resetting its data
+    cmds:
+      - node frontend/scripts/test-stack.js up
+
+  test:stack:down:
+    desc: Remove the isolated web/API/DB/collector containers and DELETE disposable test data
+    cmds:
+      - node frontend/scripts/test-stack.js down
+
+  test:stack:status:
+    desc: Show isolated web/API/DB/collector container status
+    cmds:
+      - node frontend/scripts/test-stack.js status
+
+  test:stack:logs:
+    desc: Show private isolated web/API/DB/collector logs
+    cmds:
+      - node frontend/scripts/test-stack.js logs
+
+  test:api:stop:
+    desc: Gracefully stop only the isolated test API
+    cmds:
+      - node frontend/scripts/test-stack.js api:stop
+
+  test:api:up:
+    desc: Resume the test API without rebuilding or resetting DB data
+    cmds:
+      - node frontend/scripts/test-stack.js api:up
+
+  test:frontend:
+    desc: Run Vite against the isolated test API after test:stack:setup
+    dir: "{{.FRONTEND_DIR}}"
+    env:
+      VITE_API_URL: http://127.0.0.1:3107
+    cmds:
+      - node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5187 --strictPort --mode e2e
+
+  test:db:up:
+    desc: Start or resume E2E PostgreSQL without resetting data
+    cmds:
+      - node frontend/scripts/test-db.js up
+
+  test:db:reset:
+    desc: RESET only E2E data to baseline.sql; keep the migrated schema
+    cmds:
+      - node frontend/scripts/test-db.js reset
+
+  test:db:stop:
+    desc: Stop E2E PostgreSQL while preserving its test data
+    cmds:
+      - node frontend/scripts/test-db.js stop
+
+  test:db:down:
+    desc: Remove the isolated E2E web/API/DB containers and DELETE disposable test data
+    cmds:
+      - node frontend/scripts/test-db.js down
+
+  test:db:status:
+    desc: Show the isolated E2E PostgreSQL container
+    cmds:
+      - node frontend/scripts/test-db.js status
+
+  test:db:logs:
+    desc: Show recent isolated E2E PostgreSQL logs
+    cmds:
+      - node frontend/scripts/test-db.js logs
+
+  test:e2e:install:
+    desc: "Install locked Chromium (run npm ci first); Linux CI: -- --with-deps"
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - node node_modules/@playwright/test/cli.js install chromium {{.CLI_ARGS}}
+
+  test:e2e:
+    desc: "Run isolated browser tests; options: KEEP_TEST_DB=true and -- --headed or --ui"
+    env:
+      KEEP_TEST_DB: '{{.KEEP_TEST_DB | default "false"}}'
+    cmds:
+      - node frontend/scripts/test-e2e.js {{.CLI_ARGS}}
+
+  db:up:
+    desc: Start only the local PostgreSQL service and wait until it is healthy
+    dotenv: [".env"]
+    cmds:
+      - docker compose up -d --wait db
+
+  db:stop:
+    desc: Stop PostgreSQL without deleting its data volume
+    dotenv: [".env"]
+    cmds:
+      - docker compose stop db
+
+  db:status:
+    desc: Show the local PostgreSQL container status
+    dotenv: [".env"]
+    cmds:
+      - docker compose ps db
+
+  db:logs:
+    desc: Show the latest PostgreSQL container logs
+    dotenv: [".env"]
+    cmds:
+      - docker compose logs db --tail 100
+
+  db:migrate:
+    desc: Apply pending PostgreSQL migrations with the pinned Tern version
+    dotenv: [".env"]
+    cmds:
+      - go -C "{{.BACKEND_TOOLS_DIR}}" tool tern migrate --config ../tern.conf --migrations ../migrations
+
+  db:migration:status:
+    desc: Show applied and pending PostgreSQL migrations
+    dotenv: [".env"]
+    cmds:
+      - go -C "{{.BACKEND_TOOLS_DIR}}" tool tern status --config ../tern.conf --migrations ../migrations
+
+  db:migration:new:
+    desc: "Create the next migration (usage: task db:migration:new NAME=add_leaderboard_identity)"
+    requires:
+      vars: [NAME]
+    cmds:
+      - go -C "{{.BACKEND_TOOLS_DIR}}" tool tern new --migrations ../migrations "{{.NAME}}"
+
+  backend:format:
+    desc: Rewrite Go files using configured formatters
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - golangci-lint fmt
+
+  backend:format:check:
+    desc: Fail if Go formatting differs without rewriting files
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - golangci-lint fmt --diff
+
+  backend:lint:
+    desc: Run Go static analysis, including formatter checks
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - golangci-lint run --build-tags=integration
+
+  backend:test:
+    desc: Run all Go tests
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go test ./...
+
+  api:check:
+    desc: Validate OpenAPI and check real HTTP handler responses against the contract
+    cmds:
+      - go -C "{{.BACKEND_DIR}}" test -count=1 -run TestOpenAPI -v ./internal/games/reaction/results
+
+  api:docs:
+    desc: Start Vite with local Swagger UI at /docs (Try it out calls the configured API)
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm run dev -- --strictPort --open /docs
+
+  backend:build:
+    desc: Compile the Go API without writing a repository binary
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go build -buildvcs=false ./...
+
+  backend:test:integration:
+    desc: Test migrations, retries, statistics and query performance in isolated PostgreSQL schemas
+    dotenv: [".env"]
+    cmds:
+      - go -C "{{.BACKEND_DIR}}" test -tags=integration -count=1 -v ./internal/games/reaction/results
+
+  frontend:format:
+    desc: Rewrite frontend files with Prettier
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm run format
+
+  frontend:format:check:
+    desc: Check frontend formatting with Prettier
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm run format:check
+
+  frontend:lint:
+    desc: Run ESLint with warnings treated as failures
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm run lint
+
+  frontend:test:
+    desc: Run frontend unit tests once
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm run test
+
+  frontend:build:
+    desc: Create the Vite production build
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm run build

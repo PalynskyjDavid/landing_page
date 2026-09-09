@@ -1,16 +1,20 @@
-# React + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React/Vite game and statistics UI. Start with the [repository README](../README.md)
+for setup, architecture and supported versions.
 
-Currently, two official plugins are available:
+From the repository root, use `task frontend:dev`. From this folder, the equivalent
+is `npm run dev -- --host localhost --port 5173 --strictPort`. Vite hot reloads
+React changes; the Go API must be running separately.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+`VITE_API_URL` defaults to `http://localhost:3001` in local development. For an
+override, copy `.env.example` to `.env.local` and restart Vite. These variables
+are public; never put secrets in them. The container build uses `/api` so NGINX
+can forward requests to the Go API on the same origin.
 
-## React Compiler
+Local scripts: `npm run test`, `npm run lint`, `npm run format:check`, and
+`npm run build`. Browser tests use the root `task test:e2e` wrapper, which owns
+and resets the disposable test stack; see [the E2E guide](../docs/testing/e2e.md).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+The old `Dockerfile.dev` was retired with the legacy Compose app. Use host Vite
+for hot reload or the tested `Dockerfile` for the containerized app.

@@ -5,6 +5,9 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import { setApiClientHooks } from "./lib/apiClient.js";
 import { queryClient } from "./lib/queryClient.js";
+import { ScoreDeliveryProvider } from "./providers/ScoreDeliveryProvider.jsx";
+import ScoreDeliveryNotifications from "./components/ScoreDeliveryNotifications.jsx";
+import { ConnectionSimulationBanner } from "./components/ConnectionSimulation.jsx";
 import "./index.css";
 
 if (import.meta.env.DEV) {
@@ -24,9 +27,13 @@ if (import.meta.env.DEV) {
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <ScoreDeliveryProvider>
+        <ScoreDeliveryNotifications />
+        <ConnectionSimulationBanner />
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </ScoreDeliveryProvider>
     </QueryClientProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

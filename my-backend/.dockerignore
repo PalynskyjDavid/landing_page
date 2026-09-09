@@ -1,0 +1,12 @@
+# Allowlist the build inputs. Secrets and unrelated files never enter the context.
+**
+!go.mod
+!go.sum
+!cmd/
+!cmd/**
+!internal/
+!internal/**
+**/*_test.go
+**/.env*
+**/*.pem
+**/*.key

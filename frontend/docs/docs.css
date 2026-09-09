@@ -1,0 +1,33 @@
+body {
+  margin: 0;
+  background: #fafafa;
+}
+
+.docs-notice {
+  max-width: 1380px;
+  margin: 24px auto;
+  padding: 20px;
+  border: 1px solid #b7c3d4;
+  border-radius: 8px;
+  background: #edf3fa;
+  color: #172b46;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+.docs-notice a {
+  color: #154e83;
+}
+
+.docs-notice code {
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

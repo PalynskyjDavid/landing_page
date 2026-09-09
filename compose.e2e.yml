@@ -1,0 +1,118 @@
+# Only the E2E tooling uses this project. No development containers or volumes.
+name: landing-page-e2e
+
+x-logging: &bounded-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+    mode: non-blocking
+    max-buffer-size: "1m"
+
+services:
+  web:
+    logging: *bounded-logging
+    image: landing-page-web:e2e
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    labels:
+      landing-page.e2e: "true"
+    environment:
+      LANDING_PAGE_RUNTIME: web-e2e
+    ports:
+      - "127.0.0.1:5188:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    stop_grace_period: 15s
+    restart: "no"
+
+  api:
+    logging: *bounded-logging
+    image: landing-page-api:e2e
+    build:
+      context: ./my-backend
+      dockerfile: Dockerfile
+    labels:
+      landing-page.e2e: "true"
+    environment:
+      # Inside this network 'db' is PostgreSQL; localhost would mean the API itself.
+      DATABASE_URL: postgresql://e2e_user:e2e_password@db:5432/reaction_e2e?sslmode=disable
+      BACKEND_PORT: "3001"
+      CORS_ORIGIN: http://127.0.0.1:5187
+      COOKIE_SECURE: "false"
+    ports:
+      - "127.0.0.1:3107:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    stop_grace_period: 15s
+    restart: "no" # Outage tests explicitly control recovery.
+    healthcheck:
+      test: ["CMD", "/app/api", "healthcheck"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  db:
+    logging: *bounded-logging
+    image: postgres:16
+    labels:
+      landing-page.e2e: "true"
+    environment:
+      POSTGRES_DB: reaction_e2e
+      POSTGRES_USER: e2e_user
+      POSTGRES_PASSWORD: e2e_password
+    ports:
+      - "127.0.0.1:5547:5432"
+    volumes:
+      - data:/var/lib/postgresql/data
+    healthcheck:
+      # Initialization briefly runs a socket-only server; wait for the real TCP server.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U e2e_user -d reaction_e2e"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+
+  collector:
+    image: landing-page-collector:e2e
+    build:
+      context: ./my-backend
+      dockerfile: Dockerfile
+      target: collector
+    labels:
+      landing-page.e2e: "true"
+    environment:
+      LANDING_PAGE_RUNTIME: collector-e2e
+      DATABASE_URL: postgresql://e2e_user:e2e_password@db:5432/reaction_e2e?sslmode=disable
+    # A loopback-only syslog sidecar: no public ingest port and no Docker socket.
+    # Recreate this sidecar after restarting/recreating web, whose network namespace it uses.
+    network_mode: service:web
+    depends_on:
+      web:
+        condition: service_started
+    logging: *bounded-logging
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    mem_limit: 128m
+    stop_grace_period: 10s
+    restart: "no"
+
+volumes:
+  data:
+    labels:
+      landing-page.e2e: "true"

@@ -1,0 +1,17 @@
+**
+!package.json
+!package-lock.json
+!index.html
+!vite.config.js
+!postcss.config.js
+!nginx.conf
+!scripts/
+!scripts/apiDocsPlugin.js
+!src/
+!src/**
+!public/
+!public/**
+**/*.test.*
+**/.env*
+**/*.pem
+**/*.key

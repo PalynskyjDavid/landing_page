@@ -1,0 +1,146 @@
+# Docker has host-level reach. These rules allow only inspection and lifecycle
+# operations for this project's PostgreSQL service.
+
+prefix_rule(
+    pattern = ["docker", ["version", "info", "ps"]],
+    decision = "allow",
+    justification = "Allow read-only Docker inspection for local development.",
+    match = ["docker version", "docker info", "docker ps"],
+    not_match = ["docker system prune", "docker volume rm landing_page_pgdata"],
+)
+
+prefix_rule(
+    pattern = ["docker", "compose", ["config", "ps"]],
+    decision = "allow",
+    justification = "Allow read-only inspection of this project's Compose configuration.",
+    match = ["docker compose config", "docker compose ps"],
+)
+
+prefix_rule(
+    pattern = ["docker", "compose", "logs", "db"],
+    decision = "allow",
+    justification = "Allow reading PostgreSQL development-service logs.",
+    match = ["docker compose logs db", "docker compose logs db --tail 100"],
+)
+
+prefix_rule(
+    pattern = ["docker", "compose", ["pull", "start", "stop", "restart"], "db"],
+    decision = "allow",
+    justification = "Allow lifecycle operations for only the PostgreSQL development service.",
+    match = [
+        "docker compose pull db",
+        "docker compose start db",
+        "docker compose stop db",
+        "docker compose restart db",
+    ],
+    not_match = ["docker compose stop backend", "docker compose down --volumes"],
+)
+
+prefix_rule(
+    pattern = ["docker", "compose", "up", "-d", "db"],
+    decision = "allow",
+    justification = "Allow starting only the PostgreSQL development service in the background.",
+    match = ["docker compose up -d db"],
+    not_match = ["docker compose up -d", "docker compose up -d backend"],
+)
+
+# Docker Desktop is installed at this path, but it is not on PATH in every
+# already-open terminal. Mirror the same narrow rules for the absolute path.
+prefix_rule(
+    pattern = [
+        "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe",
+        ["version", "info", "ps"],
+    ],
+    decision = "allow",
+    justification = "Allow read-only Docker inspection through the installed CLI path.",
+    match = [
+        "\"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe\" version",
+    ],
+)
+
+# The database setup task uses Compose's health-waiting form.
+prefix_rule(
+    pattern = ["docker", "compose", "up", "-d", "--wait", "db"],
+    decision = "allow",
+    justification = "Allow starting and health-checking only the PostgreSQL development service.",
+    match = ["docker compose up -d --wait db"],
+    not_match = ["docker compose up -d --wait backend"],
+)
+
+prefix_rule(
+    pattern = [
+        "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe",
+        "compose",
+        "up",
+        "-d",
+        "--wait",
+        "db",
+    ],
+    decision = "allow",
+    justification = "Allow starting and health-checking only PostgreSQL through the installed CLI path.",
+    match = [
+        "\"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe\" compose up -d --wait db",
+    ],
+)
+
+prefix_rule(
+    pattern = [
+        "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe",
+        "compose",
+        ["config", "ps"],
+    ],
+    decision = "allow",
+    justification = "Allow read-only Compose inspection through the installed CLI path.",
+    match = [
+        "\"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe\" compose ps",
+    ],
+)
+
+prefix_rule(
+    pattern = [
+        "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe",
+        "compose",
+        "logs",
+        "db",
+    ],
+    decision = "allow",
+    justification = "Allow reading PostgreSQL logs through the installed CLI path.",
+    match = [
+        "\"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe\" compose logs db",
+    ],
+)
+
+prefix_rule(
+    pattern = [
+        "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe",
+        "compose",
+        ["pull", "start", "stop", "restart"],
+        "db",
+    ],
+    decision = "allow",
+    justification = "Allow lifecycle operations for only the PostgreSQL service through the installed CLI path.",
+    match = [
+        "\"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe\" compose restart db",
+    ],
+    not_match = [
+        "\"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe\" compose stop backend",
+    ],
+)
+
+prefix_rule(
+    pattern = [
+        "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe",
+        "compose",
+        "up",
+        "-d",
+        "db",
+    ],
+    decision = "allow",
+    justification = "Allow starting only the PostgreSQL service through the installed CLI path.",
+    match = [
+        "\"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe\" compose up -d db",
+    ],
+    not_match = [
+        "\"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe\" compose up -d backend",
+    ],
+)
