@@ -2,7 +2,7 @@
 
 The workflow lives in `.github/workflows/ci.yml`. This is continuous integration:
 it checks changes, but does not deploy the app, publish images, or modify your
-development database. The E2E job runs the same four Playwright scenarios used
+development database. The E2E job runs the same fourteen Playwright scenarios used
 locally against its own disposable database.
 
 ## What runs
@@ -11,7 +11,7 @@ Pushes and pull requests start three
 independent jobs on Ubuntu 24.04:
 
 1. **Formatting, lint, unit tests, and builds** installs the pinned tools and
-   locked frontend dependencies, then runs the same `task check` used locally.
+   locked frontend dependencies, then runs `task check` and `task security:check`.
 2. **PostgreSQL migrations and integration tests** starts a fresh PostgreSQL 16
    service, applies every migration, runs migration again to check the no-op
    path, reports the schema version, and runs `task backend:test:integration`.
@@ -22,6 +22,14 @@ independent jobs on Ubuntu 24.04:
 The quality job also checks `docs/contracts/openapi.yaml` against real HTTP
 handler responses through the regular Go tests. `task api:check` runs just these
 contract checks locally.
+
+The security step runs `npm audit` for all dependencies and pinned govulncheck
+v1.7.0 for the backend and Tern. npm findings or Go findings on affected code paths
+fail the step. It needs network access and uses current advisory databases, so a
+previously passing commit can fail after a new advisory is published. It never
+applies fixes automatically. Source scans use the runner's platform; this is not
+a secret scan, container OS scan, or proof that every vulnerability was found.
+See the [dependency review](security/dependency-review-2026-09-08.md).
 
 The jobs can run in parallel; none needs another job's outputs. Steps inside
 each job run in order; normal steps stop on failure, but the E2E artifact step
@@ -36,8 +44,11 @@ Nothing connects to the PostgreSQL container on your computer. See GitHub's
 
 The E2E job is a separate runner. It uses Docker Compose via `task test:e2e` to
 create its own PostgreSQL container, apply migrations, reset data, build the Go
-API, and start the API/frontend. Tests run headlessly with one worker. The wrapper
-removes the test database afterward, and GitHub discards the runner at job end.
+API, collector and React/NGINX images, and start their containers. Browser scenarios use the
+production web server and its `/api` proxy on port 5188. Only development Swagger
+uses host Vite (5197). Tests run headlessly with one worker, including actual API
+crash/replacement, DB recovery and anonymous traffic collection. The wrapper removes all four containers and
+the test volume afterward; GitHub discards the runner at job end.
 No Docker Desktop, pgAdmin, repository secrets, or deployed server is needed on
 the hosted runner. The `postgres` job's service is not shared with the E2E job.
 
@@ -48,8 +59,10 @@ the hosted runner. The `postgres` job's service is not shared with the E2E job.
 - `test:e2e:install` forwards arguments, so CI can use
   `task test:e2e:install -- --with-deps` to install Chromium's Linux dependencies.
 - `frontend/scripts/test-e2e.js` owns the E2E lifecycle and calls Playwright.
-- `frontend/playwright.config.js` owns browsers, server startup, and reporting;
-  `compose.e2e.yml` and `frontend/e2e/baseline.sql` define the isolated database.
+- `frontend/playwright.config.js` owns browsers, development docs startup, and reporting;
+  `compose.e2e.yml` defines isolated web/API/database/collector services, and `frontend/e2e/baseline.sql`
+  supplies the data reset. `my-backend/Dockerfile` builds the Go runtime image;
+  `frontend/Dockerfile` builds React and packages it with `frontend/nginx.conf`.
 - `my-backend/go.mod` selects Go; `.nvmrc` selects Node.js.
 - `frontend/package-lock.json` makes `npm ci` install the recorded dependencies.
 - Task 3.53.1 and golangci-lint 2.13.1 match the documented local versions.
@@ -88,9 +101,11 @@ the initial feature-branch run is triggered by its push. See GitHub's
 [manual-run documentation](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).
 
 Branch protection and required checks are deliberately not changed here. We
-will choose them after seeing a successful hosted run. Image builds and
-deployment remain deferred. The first E2E hosted run failed during database
-initialization; see the diagnosis and pending verification below.
+will choose them after seeing a successful hosted run. Image builds now run inside
+the existing E2E job; image publishing and deployment remain deferred. The first E2E hosted run failed during database
+initialization, then David reported a successful follow-up run for all three jobs.
+That success was user-reported rather than independently inspected. The additional
+Swagger/recovery/container scenarios still need a new hosted run after pushing this slice.
 
 ## Download a replay after a failure
 
@@ -122,14 +137,15 @@ so keep these tests pointed at disposable test data. See
 
 ```powershell
 task check
+task security:check
 task backend:test:integration
 task test:e2e
 ```
 
-The second command needs PostgreSQL and `DATABASE_URL`. Locally, Task can load
+The security command needs network access. The integration command needs PostgreSQL and `DATABASE_URL`. Locally, Task can load
 that URL from `.env`; GitHub provides its own URL through the job environment.
 The integration tests own temporary schemas and do not modify application scores.
-The third command instead manages and resets the dedicated E2E database. See
+The E2E command instead manages and resets the dedicated E2E database. See
 `docs/testing/e2e.md` for local UI mode, keep mode, and pgAdmin inspection.
 
 ## Local verification (2026-09-07, Windows)
@@ -171,6 +187,22 @@ verification; a successful GitHub-hosted run of this fix is still pending push.
 After the OpenAPI slice, `task check`, PostgreSQL integration tests, actionlint,
 and another fresh-start browser run all passed (four scenarios, 50.8 seconds).
 The changes remain local and uncommitted; no hosted success is claimed for them.
+
+### Follow-up reported by David
+
+David subsequently reported green formatting/lint/unit/build and migration/
+integration jobs (about 1m30s), plus green Playwright E2E (about 3m). The hosted run
+was not independently inspected in this slice. The earlier "local/uncommitted"
+notes above describe that historical checkpoint, not the current checkout.
+
+The current E2E suite includes fourteen scenarios: the original game/API cases,
+local Swagger, lost responses, real API/DB outages, production web smoke checks,
+API replacement, statistics/grouping, two rate-limit/cooldown scenarios and
+anonymous system-metric buffering/privacy. It builds pinned multi-stage Go API,
+collector and React/NGINX images locally without publishing
+them. The first uncached image build adds dependency downloads/compilation time;
+there is not yet a cross-run Docker cache. The workflow still uses the shared
+Task command, one worker, and disposable data.
 
 See the official [PostgreSQL image entrypoint](https://github.com/docker-library/postgres/blob/master/docker-entrypoint.sh)
 and [pg_isready options](https://www.postgresql.org/docs/current/app-pg-isready.html).

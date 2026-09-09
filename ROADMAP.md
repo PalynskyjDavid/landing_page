@@ -2,16 +2,61 @@
 
 This roadmap is both the project TODO list and the working agreement for learning-oriented development.
 
-Current focus (2026-09-08): Fix the first hosted E2E startup failure and establish
-the machine-readable API contract. TCP PostgreSQL health checks and failure
-diagnostics are implemented; three fresh migration cycles and all four browser
-scenarios passed locally. OpenAPI now documents the five implemented operations,
-with route/HTTP-response contract checks included in normal Go tests.
-The full quality gate, PostgreSQL integration tests, and final four-scenario
-browser run (50.8 seconds) passed locally. Changes have not been committed/pushed.
-Next: push/review the hosted CI result, then automate a real database-outage/recovery
-browser scenario. See `docs/testing/e2e.md`,
-`docs/ci.md`, and `docs/contracts/README.md`.
+Current focus (2026-09-09): finish the game/statistics release, then choose safe
+hosting so David can share it with employers. Project showcase, Kubernetes and
+additional minigames are post-launch work. The new `/statistics` page moves the
+leaderboard out of the game, adds column/range/date/personal filters, groups by
+player and charts player averages. Migration 007 supplies generated best scores
+and measured indexes. Basic NGINX rate limits and persistent 429 cooldown protect
+submission flow. See [the statistics guide](docs/statistics.md).
+
+Release decision (2026-09-09): finish the source-control/CI checkpoint here.
+David and his friend will choose PaaS/IaaS hosting and work on CD together.
+Do not configure hosting, publish images or deploy infrastructure in this slice.
+
+The System statistics tab adds anonymous API traffic/error/latency graphs.
+Migration 008 and a separate Go collector persist bounded request summaries;
+private Docker logs remain separate. See [observability](docs/observability.md)
+and [ADR 0006](docs/decisions/0006-separate-request-logs-from-public-metrics.md).
+This is best-effort telemetry, not uptime monitoring or an automatic restart system.
+
+Release checklist:
+
+- [x] Separate game and statistics routes; keep queued saves alive across navigation.
+- [x] Server-side filters, player grouping, graph, summary and bounded Top N.
+- [x] Query correctness and migration round trip against PostgreSQL; measure 100k games.
+- [x] Edge rate limits, body bounds, Retry-After and reload-safe submission cooldown.
+- [x] Finish final browser/quality verification and review this slice.
+- [x] Add anonymous public request graphs with private logs, retention and outage buffering.
+- [ ] Commit/push when requested and verify all hosted CI jobs.
+- [ ] With David and his friend, choose the PaaS/IaaS target, then prepare HTTPS,
+  private services, secrets, backups and deploy/rollback. CD is deferred to that session.
+
+Local verification: `task check`, `task security:check`, API contract checks,
+PostgreSQL integration tests and all fourteen browser scenarios passed (6.2 minutes).
+The final dark-mode contrast assertions passed in a focused rerun. Quality checks
+include 77 Vitest tests; telemetry/HTTP tests also passed twenty repetitions.
+Standalone reset and web restart/collector reattachment passed. Manual E2E data
+was restored and compared exactly with its backup before applying migration 008.
+All four containers are healthy at `http://127.0.0.1:5188/statistics?view=system`;
+the three original games remain, and development data is untouched. No commit,
+push or publication was performed. Detailed evidence is in `docs/testing/e2e.md`.
+
+Previous checkpoint (2026-09-08): Dependency review is complete for the canonical app
+and Tern. Targeted npm/Go updates and matching Node 22.23.2, Go 1.26.8 and NGINX
+1.30.4 image pins resolved known npm and reachable Go findings. The router no
+longer trusts caller-supplied IP headers. `task security:check` now runs locally
+and in CI; Tern's one unused OpenPGP module advisory has a documented disposition.
+Local checks passed: 67 Vitest tests, Go/contract tests, formatting/lint, builds,
+PostgreSQL integration tests, all ten browser scenarios in about 3.5 minutes,
+workflow lint, and a vulnerability scan of the actual Linux API executable.
+The manual E2E database was backed up and restored with identical data/sequence
+checksum. The ignored backup is `frontend/.e2e/manual-before-security-20260908.dump`.
+The rebuilt manual stack is running at 5188. No development data, SQL migration,
+machine-wide Node selection, registry or deployment changed. These and the earlier
+Swagger/recovery/container changes remain uncommitted/unpushed; hosted verification
+is pending. See [the review](docs/security/dependency-review-2026-09-08.md),
+`docs/containers.md`, `docs/testing/e2e.md`, `docs/ci.md`, and ADR 0005.
 
 ## How we will work
 
@@ -36,19 +81,23 @@ browser scenario. See `docs/testing/e2e.md`,
 Older ownership labels record the original learning plan; unless David reserves
 a task, the implementation-first agreement above now applies.
 
-### Next prepared slice: real database outage
+### Current prepared slice: release checkpoint; CD with David and his friend later
 
-- **Outcome:** prove pending scores recover when PostgreSQL really stops, not just
-  when the browser's connection simulator rejects a request.
-- **Scope:** one Playwright scenario using only the owned E2E database and existing
-  lifecycle/lock helpers. Do not expose a public stop-database API.
-- **Acceptance:** liveness stays 200 while readiness becomes 503; a submitted score
-  queues; restarting the same database without resetting its data restores readiness;
-  the pending submission is stored exactly once and appears after a page reload.
-- **Safety:** restore the test database in a `finally` block even when assertions
-  fail; preserve normal wrapper cleanup and never target the development container.
-- **Verification:** run the scenario alone, then the full browser suite to catch
-  leaked outage state; keep database/schema migrations unchanged.
+- **Outcome:** establish a reviewed, hosted-green game/statistics release candidate.
+- **Scope:** review accumulated changes, separate coherent commits when practical,
+  and select Node 22.23.2 in David's normal terminal. Commit/push when requested;
+  inspect all three hosted jobs and the Playwright report. Keep `main` unchanged.
+- **Acceptance:** hosted quality/security, PostgreSQL, and fourteen browser scenarios pass;
+  document any platform-specific difference instead of weakening checks.
+- **Then, with David and his friend:** select the available PaaS/IaaS target and release method. Keep the
+  existing container images, add immutable commit-based tags and image scanning,
+  and verify backup/restore plus deploy/rollback before sharing a public link.
+- **Deferred:** registry publication, paid hosting, TLS/secrets/deployment, and
+  Kubernetes require separate decisions. No public container-control endpoint.
+
+The pre-push review and handoff are described in [the release checkpoint](docs/release-checkpoint.md).
+Hosted success is recorded on the matching commit's GitHub Actions run, not inferred
+from local checks or an earlier green commit.
 
 ### Task lifecycle
 
@@ -167,6 +216,8 @@ Depends on Stages 1 and 2.
 - [ ] Specify API requests, responses, validation errors, and status codes. **David**
 - [x] Introduce OpenAPI for implemented scores, leaderboard, and health endpoints;
   validate routes and real HTTP responses in `task api:check` and normal Go tests. **Codex**
+- [x] Add development-only Swagger UI from that same contract, with a real health-request browser test. **Codex**
+- [x] Establish the player cookie before saving a score; document direct-client compatibility and lost-response safety in ADR 0003. **Codex**
 - [ ] Decide whether to generate Go server types and frontend client types. **Pair**
 - [ ] Define migration ownership and compatibility rules. **Pair**
 - [ ] Remove or implement orphaned frontend calls such as `/events`. **David**
@@ -212,7 +263,7 @@ Frontend and backend work can proceed in parallel after Stage 2; contract-depend
 - [x] Pin and document the initial Node.js, Task, golangci-lint, and Prettier versions. **Codex setup**
 - [x] Resolve the baseline formatting findings in a separate formatting-only commit. **Codex, authorized by David**
 - [x] Resolve the baseline lint findings; the complete local quality gate passes. **Pair**
-- [ ] Review dependency-audit findings without applying an automatic bulk upgrade. **Pair**
+- [x] Review dependency-audit findings, apply targeted fixes, document the unused OpenPGP advisory and verify the full stack. **Codex**
 
 ### Frontend
 
@@ -228,7 +279,7 @@ Frontend and backend work can proceed in parallel after Stage 2; contract-depend
 - [ ] Expand Go service and handler unit tests. **David**
 - [x] Add PostgreSQL integration coverage for player names, retries, concurrency, and migration down/up. **Codex**
 - [x] Add formatting, `go vet`, and lint checks. **Codex setup**
-- [ ] Test configuration and graceful shutdown behavior. **David**
+- [x] Test environment defaults/validation, health probes, in-flight request draining, and shutdown deadlines. **Codex**
 - [x] Test migrations from an empty PostgreSQL database. **Pair**
 
 ## Stage 5 — Feature redesign
@@ -258,8 +309,12 @@ Depends on a coherent full-stack feature flow from Stage 5.
 - [x] Test invalid API inputs, error codes, and absence of stored scores. **Pair**
 - [x] Distinguish requested keep mode from successful setup and print database logs before failure cleanup. **Codex**
 - [x] Wait for PostgreSQL TCP readiness and verify repeated empty-volume startup/migration cycles. **Codex**
-- [ ] Automate real backend/database outages and unavailable-service recovery in Playwright. **David**
-- [ ] Define a small production smoke-test suite. **Pair**
+- [x] Automate a real database outage: two games queue, survive reload, and save once each after restart. **Codex**
+- [x] Drop cookie-only and committed-save HTTP responses and verify safe retry without duplicate rows. **Codex**
+- [x] Verify Swagger UI serves the contract and executes a real health request using only local stack origins. **Codex**
+- [x] Automate actual backend SIGTERM/SIGKILL and recovery after a new game/reload; verify one stored row. **Codex**
+- [x] Restore stopped test services after a failed worker; verify with a deliberate-failure experiment. **Codex**
+- [x] Define local production-image smoke tests for routes, assets, cookies, headers and proxy recovery; deployed smoke checks remain later work. **Codex**
 
 ## Stage 7 — Continuous Integration
 
@@ -270,17 +325,20 @@ tests. Browser automation from Stage 6 can be added afterward.
 - [x] Configure a disposable PostgreSQL service for migrations and integration tests in CI. **Codex**
 - [x] Push the branch and inspect the first successful GitHub-hosted run together; David reported success for `b7857ff`. **Pair**
 - [x] Update setup-go and setup-task action pins to verified Node 24-compatible releases. **Codex**
-- [x] Configure the four-scenario Playwright CI job with seven-day report/failure artifact uploads. **Codex**
-- [ ] Push the startup fix and verify a successful hosted E2E run, then inspect its report.
-  First run `34161440677` failed before Playwright during database startup. **Pair**
-- [ ] Build production Docker images without publishing them. **Codex setup**
+- [x] Configure the Playwright CI job with seven-day report/failure artifact uploads; it discovers all ten current scenarios. **Codex**
+- [x] Push the startup fix; David reported a successful hosted E2E run after the initial startup failure in run `34161440677`. Not independently inspected. **Pair**
+- [ ] Inspect/download the hosted Playwright report together. **Pair**
+- [ ] Commit/push the Swagger/cookie-recovery/container slices and verify the ten-scenario hosted run. **Pair**
+- [x] Configure the existing E2E job to build/use the Go runtime image without publishing it; locally verified, hosted run pending. **Codex**
+- [x] Build/test the production frontend runtime image without publishing it; hosted verification pending. **Codex**
 - [ ] Protect the main branch with required checks. **David, repository settings**
 
 ## Stage 8 — Artifacts and deployment infrastructure
 
 Depends on successful CI and the deployment decisions from Stage 1.
 
-- [ ] Create production multi-stage Dockerfiles. **David**
+- [x] Create a pinned multi-stage Dockerfile for the canonical Go API and exercise it in isolated E2E tests. **Codex**
+- [x] Create the frontend production multi-stage Dockerfile and same-origin NGINX proxy configuration; see ADR 0005. **Codex**
 - [ ] Tag immutable images with the Git commit. **Codex setup**
 - [ ] Publish images to GitHub Container Registry. **Pair**
 - [ ] Choose and document the hosting model. **Pair**
@@ -300,10 +358,12 @@ Depends on both artifact publishing and deployment infrastructure.
 
 Uses staging from Stage 9 as the proving environment.
 
-- [ ] Add structured logs and request IDs. **David**
+- [x] Add private structured request logs and NGINX-to-Go correlation IDs. **Codex**
 - [ ] Add frontend error reporting. **Pair**
-- [ ] Add uptime and basic service metrics. **Pair**
-- [ ] Add dependency, secret, and container scanning. **Codex setup**
+- [x] Add bounded anonymous request/error/timing graphs with freshness and known-loss labels. **Codex**
+- [ ] Add independent uptime checks and alerting after hosting is selected. **Pair**
+- [x] Add current npm and reachable Go dependency/standard-library checks to local tasks and CI. **Codex**
+- [ ] Add secret and container OS scanning; review PostgreSQL image freshness. **Codex setup**
 - [ ] Test database backup and restore. **David**
 - [ ] Review rate limits, CORS, and HTTP security headers. **Pair**
 

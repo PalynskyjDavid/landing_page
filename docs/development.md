@@ -1,13 +1,32 @@
 # Development Workflow
 
+For the containerized System statistics tab and its new Go collector, see
+[the observability guide](observability.md). Collection runs in the isolated
+four-container stack; direct hot-reload API traffic is not counted by NGINX.
+
 ## Supported local versions
 
-- Go 1.26.1, as declared by `my-backend/go.mod`.
-- Node.js 22.17.0, as declared by `.nvmrc`.
+- Go 1.26.8, as declared by `my-backend/go.mod`.
+- Node.js 22.23.2, as declared by `.nvmrc`.
 - Task 3.53.1.
 - golangci-lint 2.13.1.
 - Tern 2.4.3, pinned in `my-backend/tools/go.mod`.
 - Prettier is installed through `frontend/package.json`.
+- govulncheck v1.7.0 is run through its pinned Go module command; no global install is needed.
+
+On Windows, updating `.nvmrc` does not switch an existing terminal's Node version.
+With nvm-windows installed, select the version explicitly:
+
+```powershell
+nvm install 22.23.2
+nvm use 22.23.2
+node --version
+npm ci --prefix frontend
+```
+
+The normal Go `GOTOOLCHAIN=auto` setting downloads/selects the version required by
+each module. The Docker builders use matching pinned versions. Unit tests guard
+against drift between these files; neither version file upgrades a running container.
 
 Task and golangci-lint are developer-machine tools. Their executables are normally installed in the Go binary directory:
 
@@ -35,6 +54,18 @@ Runs the complete read-only quality gate in this order:
 The command reports problems but is not intended to rewrite source files.
 
 ```powershell
+task security:check
+```
+
+Separately queries current vulnerability databases: all npm dependencies (including
+build/dev tools), the Go backend, and the Tern migration tool. It requires network
+access, downloads the pinned scanner if necessary, and does not upgrade packages.
+CI runs it after `task check`. New advisories can change its result without a code
+change; investigate the report rather than suppressing it or blindly upgrading.
+See the [dependency review](security/dependency-review-2026-09-08.md) for findings,
+the unused OpenPGP advisory, and scan limitations.
+
+```powershell
 task format
 ```
 
@@ -58,7 +89,10 @@ task --list
 ## Local PostgreSQL and migrations
 
 Docker Desktop must be running. The application itself still runs directly on
-the host; Compose starts only the PostgreSQL dependency.
+the host in the normal development workflow; Compose starts only PostgreSQL there.
+The separate E2E stack now runs the canonical Go API in a container too. See
+[Container walkthrough](containers.md) for an inspectable test stack, commands,
+networking, image builds, and crash recovery. Normal hot reload is unchanged.
 
 From the repository root, run:
 
@@ -100,6 +134,14 @@ Tern stores each migration in one numbered SQL file. SQL above
 `---- create above / drop below ----` migrates forward; SQL below it rolls
 that migration back. The backend does not migrate automatically at startup:
 schema changes remain an explicit development and deployment step.
+
+### Statistics (migration 007)
+
+Run `task db:migrate` before starting the new backend against your normal local
+database. Statistics reads require the new generated `best_ms` column. This
+slice's automated checks migrate only the disposable E2E database, not your
+development database. Open `/statistics` for filters and grouped player averages;
+see [the statistics guide](statistics.md) for query and rate-limit details.
 
 ### Player-name synchronization (migration 006)
 
@@ -197,11 +239,12 @@ Do not run automatic dependency upgrades or broad `--fix` commands merely to mak
   reliable-delivery state machine.
 - The first GitHub Actions workflow is implemented in `.github/workflows/ci.yml`.
   See `docs/ci.md` for its jobs, local equivalents, and first-run walkthrough.
-- Vulnerability remediation is a separate reviewed task; dependency audit results are not automatically modified.
+- Vulnerability checks run locally and in CI; remediation remains a reviewed change, not an automatic modification.
 
-The production dependency audit currently reports no known vulnerabilities
-after a targeted React Router update. Development-only audit findings remain a
-separate review task and were not modified automatically.
+The 2026-09-08 dependency review resolved the ten npm findings, including development
+tools, and all Go findings on affected code paths. The full npm audit reports zero;
+Tern retains one advisory in a package it does not import. See the dated review above
+instead of treating a clean scan as a permanent security guarantee.
 
 ## Current verification (2026-09-06)
 
