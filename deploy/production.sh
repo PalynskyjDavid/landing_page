@@ -126,7 +126,8 @@ case "$command" in
     dc up -d --wait --wait-timeout 120 --no-build --pull never db
     backup
     # A failure here leaves existing app containers alone. Inspect before retrying.
-    dc run --rm --no-deps --no-build --pull never migrate
+    # Unlike up, run has no --no-build flag; images_exist verified the tagged image.
+    dc run --rm --no-deps --pull never migrate
     dc exec -T db psql --username postgres --dbname reaction --set ON_ERROR_STOP=1 < "$root/deploy/grants.sql"
     start_apps
     ;;

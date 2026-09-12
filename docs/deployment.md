@@ -8,8 +8,11 @@ Moving those builds into CI/GHCR is a later, separate step.
 
 From Windows, run `task deploy:check` for the safety tests and
 `task deploy:config:check` to parse Compose without launching anything. The first
-also runs inside `task check` / CI. Server operations below use Bash over SSH,
-not the local E2E tasks. Windows safety tests use Git for Windows' bundled Bash.
+also runs inside `task check` / CI. Both checks require the Docker CLI and Compose
+plugin, but no running Docker daemon. Startup flags are validated against the real
+Compose parser in help mode, not only mocked commands. Server operations below
+use Bash over SSH, not the local E2E tasks. Windows safety tests use Git for
+Windows' bundled Bash.
 
 ## Buy / create first
 

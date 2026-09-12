@@ -70,6 +70,32 @@ test("deployment shell scripts parse without executing anything", () => {
   }
 });
 
+test("production startup flags are accepted by the real Compose CLI without starting containers", () => {
+  const commands = [...read("deploy/production.sh").matchAll(/^\s*dc (run|up) ([^\r\n]+)$/gm)];
+  assert(commands.some(([, subcommand]) => subcommand === "run"));
+  assert(commands.some(([, subcommand]) => subcommand === "up"));
+
+  for (const [, subcommand, argumentsText] of commands) {
+    // These startup calls use literal, single-line arguments. Fail if that changes
+    // instead of silently treating shell syntax as a valid Compose invocation.
+    assert.match(argumentsText, /^[\w\s-]+$/);
+    const args = argumentsText.trim().split(/\s+/);
+    // Help MUST precede the service: after it, run treats --help as the container's
+    // command. This validates flags without loading a project or contacting Docker.
+    const result = spawnSync("docker", ["compose", subcommand, "--help", ...args], {
+      encoding: "utf8",
+      timeout: 10_000,
+      windowsHide: true,
+    });
+    assert.equal(
+      result.status,
+      0,
+      `docker compose ${subcommand} ${argumentsText}: ${result.error?.message || result.stderr}`,
+    );
+    assert.match(result.stdout, /Usage:/);
+  }
+});
+
 function fixture(t, overrides = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), "landing-deploy-unit-"));
   // Cleanup is restricted to the fresh directory created for this test.
