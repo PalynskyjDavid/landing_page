@@ -11,12 +11,13 @@ anti-cheat measurements**, and the anonymous player cookie is not a login.
 
 ## Start here
 
-The current release candidate is on **`codex/backend-foundation`**; `main` has not
-been updated. Hosting/CD will be configured with David and his friend. Nothing
-here provisions hosting or publishes images.
+The application foundation is merged into `main`. Production deployment work is
+prepared on `deployment`; use a reviewed commit whose CI has passed.
+See [the VPS deployment guide](docs/deployment.md) for hosting, HTTPS, backups and
+manual release scripts. Nothing here purchases hosting or publishes images.
 
 ```powershell
-git clone --branch codex/backend-foundation https://github.com/PalynskyjDavid/landing_page.git
+git clone https://github.com/PalynskyjDavid/landing_page.git
 cd landing_page
 ```
 

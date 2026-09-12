@@ -6,6 +6,12 @@
 !cmd/**
 !internal/
 !internal/**
+!tools/
+!tools/go.mod
+!tools/go.sum
+!migrations/
+!migrations/*.sql
+!tern.conf
 **/*_test.go
 **/.env*
 **/*.pem

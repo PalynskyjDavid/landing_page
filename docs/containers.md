@@ -12,6 +12,10 @@ development. It no longer starts either retired backend. Use the
 [README](../README.md) to choose between editing locally and the isolated
 container demo below; neither Compose file is a production deployment template.
 
+For a public server, use the separate `compose.prod.yml` and
+[VPS deployment guide](deployment.md). The remainder of this document explains
+the local/E2E container setup, whose reset helpers must never target production.
+
 ## Image versus container
 
 An **image** is the built package: our executable, certificate files, and metadata

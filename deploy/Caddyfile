@@ -1,0 +1,5 @@
+{$DOMAIN} {
+    # Automatic HTTPS. Access logs stay in NGINX's existing redacted format.
+    header -Server
+    reverse_proxy web:8080
+}

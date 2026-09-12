@@ -387,6 +387,7 @@ Depends on successful CI and the deployment decisions from Stage 1.
 - [ ] Tag immutable images with the Git commit. **Codex setup**
 - [ ] Publish images to GitHub Container Registry. **Pair**
 - [ ] Choose and document the hosting model. **Pair**
+- [x] Prepare the manual VPS/Compose alternative, commit-tagged local builds, TLS configuration, restricted DB roles and deployment/backup helpers; see `docs/deployment.md`. Provider purchase, off-server backup automation and public launch remain pending. **Codex**
 - [ ] Define secrets, TLS, networking, database, and backup handling. **Pair**
 - [ ] Create infrastructure as code where it improves reproducibility. **Pair**
 

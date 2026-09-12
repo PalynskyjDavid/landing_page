@@ -5,6 +5,7 @@
 !vite.config.js
 !postcss.config.js
 !nginx.conf
+!proxy-trust.conf
 !scripts/
 !scripts/apiDocsPlugin.js
 !src/

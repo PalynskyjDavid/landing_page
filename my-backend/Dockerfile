@@ -21,7 +21,26 @@ USER 65532:65532
 HEALTHCHECK --interval=5s --timeout=2s --start-period=3s --retries=6 CMD ["/app/collector", "healthcheck"]
 ENTRYPOINT ["/app/collector"]
 
-# No compiler, shell, source code, migrations, or .env in the runtime image.
+# Explicit one-shot migration image; migrations never run inside the API process.
+FROM build AS migrate-build
+WORKDIR /tools
+COPY tools/go.mod tools/go.sum ./
+RUN go build -trimpath -buildvcs=false -ldflags="-s -w" -o /out/tern github.com/jackc/tern/v2
+
+FROM scratch AS migrate
+WORKDIR /app
+# Tern/pgx resolves an OS username while loading config, even with a URL supplied.
+# scratch has no /etc/passwd; pure-Go os/user uses these explicit defaults.
+ENV USER=app_migrator HOME=/app
+COPY --from=migrate-build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=migrate-build /out/tern /app/tern
+COPY migrations/ /app/migrations/
+COPY tern.conf /app/tern.conf
+USER 65532:65532
+ENTRYPOINT ["/app/tern"]
+CMD ["migrate", "--config", "/app/tern.conf", "--migrations", "/app/migrations"]
+
+# No compiler, shell, source code, migrations, or .env in the API runtime image.
 FROM scratch AS api
 WORKDIR /app
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt

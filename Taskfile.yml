@@ -19,6 +19,24 @@ tasks:
       - task: lint
       - task: test
       - task: build
+      - task: deploy:check
+
+  deploy:check:
+    desc: Validate deployment boundaries and shell safeguards without starting containers
+    cmds:
+      - node --test frontend/scripts/production-check.test.js
+
+  deploy:config:check:
+    desc: Parse production Compose with placeholder values only (no deployment)
+    env:
+      RELEASE: "0000000000000000000000000000000000000000"
+      DOMAIN: example.com
+      ADMIN_PASSWORD: placeholder
+      MIGRATOR_PASSWORD: placeholder
+      API_PASSWORD: placeholder
+      COLLECTOR_PASSWORD: placeholder
+    cmds:
+      - docker compose --env-file deploy/.env.example -f compose.prod.yml config --quiet
 
   security:check:
     desc: Query current npm and Go vulnerability databases (network required; does not upgrade packages)
