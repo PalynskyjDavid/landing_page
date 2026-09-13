@@ -26,6 +26,7 @@ type createRequest struct {
 	Times        []int   `json:"times"`
 	Missclicks   int     `json:"missclicks"`
 	DisplayName  *string `json:"displayName,omitempty"`
+	DeviceType   string  `json:"deviceType"`
 }
 
 type createResponse struct {
@@ -34,6 +35,7 @@ type createResponse struct {
 	TotalRounds  int     `json:"totalRounds"`
 	AverageMs    int     `json:"averageMs"`
 	DisplayName  *string `json:"displayName,omitempty"`
+	DeviceType   string  `json:"deviceType"`
 	CreatedAt    string  `json:"createdAt"`
 }
 
@@ -100,6 +102,7 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		Times:        request.Times,
 		Missclicks:   request.Missclicks,
 		DisplayName:  request.DisplayName,
+		DeviceType:   request.DeviceType,
 	})
 	if err != nil {
 		httpapi.WriteError(w, h.logger, err)
@@ -117,6 +120,7 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		TotalRounds:  result.TotalRounds,
 		AverageMs:    result.AverageMs,
 		DisplayName:  result.DisplayName,
+		DeviceType:   defaultDeviceType(result.DeviceType),
 		CreatedAt:    result.CreatedAt.Format(time.RFC3339),
 	})
 }

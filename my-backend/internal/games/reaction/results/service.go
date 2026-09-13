@@ -36,6 +36,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*Result, bool,
 		return nil, false, apperror.BadRequest("score_invalid_player_id", "playerId must be a valid UUID.", nil)
 	}
 
+	input.DeviceType = defaultDeviceType(input.DeviceType)
 	input.DisplayName = normalizeOptionalString(input.DisplayName)
 
 	if err := validateCreateInput(input); err != nil {
@@ -50,6 +51,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*Result, bool,
 		Missclicks:   input.Missclicks,
 		AverageMs:    calculateAverageMs(input.Times),
 		DisplayName:  input.DisplayName,
+		DeviceType:   input.DeviceType,
 	}
 
 	result, created, err := s.repository.Create(ctx, params)
@@ -71,6 +73,7 @@ func sameSubmission(result *Result, params CreateParams) bool {
 	if result == nil ||
 		result.SubmissionID != params.SubmissionID ||
 		result.PlayerID != params.PlayerID ||
+		defaultDeviceType(result.DeviceType) != defaultDeviceType(params.DeviceType) ||
 		result.TotalRounds != params.TotalRounds ||
 		result.Missclicks != params.Missclicks ||
 		result.AverageMs != params.AverageMs ||
@@ -168,6 +171,9 @@ func invalidLeaderboardSortError() error {
 }
 
 func validateCreateInput(input CreateInput) error {
+	if !validDeviceType(defaultDeviceType(input.DeviceType)) {
+		return apperror.BadRequest("score_invalid_device_type", "deviceType must be computer or mobile.", nil)
+	}
 	if len(input.Times) != requiredRoundCount {
 		return apperror.BadRequest("score_invalid_round_count", "times must contain exactly five reaction times.", nil)
 	}

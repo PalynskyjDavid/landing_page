@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n/useI18n.js";
+import LanguageSwitcher from "./ui/LanguageSwitcher.jsx";
 import { Outlet } from "react-router-dom";
 import ThemeSwitch from "../components/ui/ThemeToggleBtn";
 import TopLink from "../components/ui/TopLink";
@@ -57,23 +59,27 @@ import TopLink from "../components/ui/TopLink";
 // }
 
 export default function Shell() {
+  const { t } = useI18n();
   // const { theme, setTheme } = useTheme();
   // const year = useMemo(() => new Date().getFullYear(), []);
 
   return (
     <div className="shell-div">
       <header className="shell-header">
-        <ThemeSwitch>Theme</ThemeSwitch>
+        <div className="shell-controls">
+          <ThemeSwitch />
+          <LanguageSwitcher />
+        </div>
 
         <nav className="shell-nav">
           <TopLink to="/" tilt="left">
-            Home
+            {t("Home")}
           </TopLink>
           <TopLink to="/game" tilt="right">
-            Game
+            {t("Game")}
           </TopLink>
           <TopLink to="/statistics" tilt="left">
-            Statistics
+            {t("Statistics")}
           </TopLink>
         </nav>
       </header>

@@ -8,6 +8,7 @@
 !proxy-trust.conf
 !scripts/
 !scripts/apiDocsPlugin.js
+!scripts/flowentoBudget.js
 !src/
 !src/**
 !public/

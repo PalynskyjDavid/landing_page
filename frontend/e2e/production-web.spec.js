@@ -25,6 +25,15 @@ test("the production image serves React routes, protects assets, and uses same-o
   expect(home.headers()["cache-control"]).toBe("no-cache");
   expect(home.headers()["x-content-type-options"]).toBe("nosniff");
   expect(home.headers()["content-security-policy"]).toContain("connect-src 'self'");
+  // Nested SPA routes must serve HTML directly, with or without a trailing slash.
+  // Following redirects would hide an accidental redirect to the internal port.
+  for (const path of ["/projects/flowento", "/projects/flowento/"]) {
+    const route = await page.request.get(path, { maxRedirects: 0 });
+    expect(route.status(), path).toBe(200);
+    expect(route.headers()["location"], path).toBeUndefined();
+    expect(route.headers()["content-type"]).toContain("text/html");
+    expect(route.headers()["cache-control"]).toBe("no-cache");
+  }
   await page.goto("/game");
   await page.reload();
   await expect(page.getByText("Click to start.", { exact: true })).toBeVisible();
@@ -38,6 +47,8 @@ test("the production image serves React routes, protects assets, and uses same-o
   const asset = await page.request.get(script);
   expect(asset.status()).toBe(200);
   expect(asset.headers()["cache-control"]).toContain("immutable");
+  expect(asset.headers()["content-encoding"]).toBe("gzip");
+  expect(asset.headers()["vary"]).toContain("Accept-Encoding");
   expect(await asset.text()).not.toContain("localhost:3001");
   const cookie = (await page.context().cookies()).find(
     (value) => value.name === "reaction_player_id",
@@ -53,6 +64,7 @@ test("the production image serves React routes, protects assets, and uses same-o
     "/src/main.jsx",
     "/@vite/client",
     "/assets/missing.js",
+    "/assets/missing.glb",
   ]) {
     expect((await page.request.get(path)).status(), path).toBe(404);
   }

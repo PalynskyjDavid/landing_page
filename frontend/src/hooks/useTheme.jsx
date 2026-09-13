@@ -2,8 +2,12 @@ import { useEffect, useState } from "react";
 
 export function useTheme() {
   const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem("theme");
-    if (saved === "dark" || saved === "light") return saved;
+    try {
+      const saved = localStorage.getItem("theme");
+      if (saved === "dark" || saved === "light") return saved;
+    } catch {
+      // Storage can be blocked; keep the page usable with an in-memory preference.
+    }
 
     // No saved preference -> follow system
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
@@ -11,7 +15,11 @@ export function useTheme() {
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("theme", theme);
+    try {
+      localStorage.setItem("theme", theme);
+    } catch {
+      // The selected theme still applies for this visit.
+    }
   }, [theme]);
 
   // // Optional: if user never picked a theme, keep following system changes

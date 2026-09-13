@@ -5,7 +5,8 @@ INSERT INTO scores (
     average_ms,
     submission_id,
     player_id,
-    display_name
+    display_name,
+    device_type
 ) VALUES (
     @total_rounds,
     @times::jsonb,
@@ -13,7 +14,8 @@ INSERT INTO scores (
     @average_ms,
     @submission_id,
     @player_id,
-    @display_name
+    @display_name,
+    @device_type
 )
 ON CONFLICT (submission_id) DO NOTHING
 RETURNING id, created_at;

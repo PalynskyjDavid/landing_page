@@ -52,7 +52,8 @@ func (r *PostgresRepository) ReadStatistics(ctx context.Context, params Statisti
 	var payload []byte
 	err = r.db.QueryRow(ctx, query, pgx.NamedArgs{
 		"limit": params.Limit, "player_id": params.PlayerID, "since": params.Since,
-		"until": params.Until, "player": params.Player, "min_games": params.MinGames,
+		"device_type": params.DeviceType,
+		"until":       params.Until, "player": params.Player, "min_games": params.MinGames,
 		"min_average": params.MinAverageMs, "max_average": params.MaxAverageMs,
 		"min_best": params.MinBestMs, "max_best": params.MaxBestMs,
 		"min_missclicks": params.MinMissclicks, "max_missclicks": params.MaxMissclicks,
@@ -74,13 +75,14 @@ func (r *PostgresRepository) ReadStatistics(ctx context.Context, params Statisti
 }
 
 const statisticsGamesSQL = `
-SELECT id, player_id, display_name, average_ms, average_ms::bigint AS average_total,
+SELECT id, player_id, display_name, device_type, average_ms, average_ms::bigint AS average_total,
        average_ms AS best_average_ms, best_ms, missclicks, 1::bigint AS games,
        total_rounds::bigint, created_at
 FROM filtered`
 
 const statisticsPlayersSQL = `
 SELECT MIN(id) AS id, player_id,
+       CASE WHEN COUNT(DISTINCT device_type) = 1 THEN MIN(device_type) ELSE 'mixed' END AS device_type,
        (array_agg(display_name ORDER BY created_at DESC, id DESC))[1] AS display_name,
        FLOOR(AVG(average_ms))::integer AS average_ms,
        SUM(average_ms::bigint) AS average_total,

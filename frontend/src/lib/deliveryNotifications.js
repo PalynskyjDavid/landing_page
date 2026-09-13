@@ -71,7 +71,12 @@ export function createDeliveryNotifications(initialSnapshot) {
           "failed",
           "Some scores need attention",
           `${saved} saved; ${failed} could not be saved. Automatic retries have stopped for the failed scores.`,
-          { tone: "error" },
+          {
+            tone: "error",
+            messageKey:
+              "{{saved}} saved; {{failed}} could not be saved. Automatic retries have stopped for the failed scores.",
+            values: { saved, failed },
+          },
         );
       }
       if (saved > 0) {
@@ -83,7 +88,12 @@ export function createDeliveryNotifications(initialSnapshot) {
               ? "Score saved"
               : `${saved} scores saved`,
           "Your results have reached the leaderboard.",
-          { tone: "success", autoCloseMs: 6000 },
+          {
+            tone: "success",
+            autoCloseMs: 6000,
+            titleKey: recovered ? "previousScoresSaved" : "scoresSaved",
+            values: { count: saved },
+          },
         );
       }
       return notification;
@@ -114,7 +124,12 @@ export function createDeliveryNotifications(initialSnapshot) {
         "waiting",
         "Scores saved for later",
         `${waitingCount} ${waitingCount === 1 ? "score is" : "scores are"} kept in this browser. We’ll send ${waitingCount === 1 ? "it" : "them"} when the connection returns.`,
-        { tone: "warning", autoCloseMs: 10000 },
+        {
+          tone: "warning",
+          autoCloseMs: 10000,
+          messageKey: "scoresWaiting",
+          values: { count: waitingCount },
+        },
       );
     }
 
@@ -139,7 +154,11 @@ export function createDeliveryNotifications(initialSnapshot) {
         "retrying",
         "Retrying…",
         `Attempt ${retry.attempt} of ${retry.maxAttempts}. Your score is kept in this browser.`,
-        { busy: true },
+        {
+          busy: true,
+          messageKey: "Attempt {{attempt}} of {{maximum}}. Your score is kept in this browser.",
+          values: { attempt: retry.attempt, maximum: retry.maxAttempts },
+        },
       );
     }
 

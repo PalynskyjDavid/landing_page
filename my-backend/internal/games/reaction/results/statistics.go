@@ -16,6 +16,7 @@ type StatisticsOptions struct {
 	Scope                        string
 	Period                       string
 	PlayerID                     string
+	DeviceType                   string
 	Group                        string
 	Player                       string
 	From, To                     *time.Time
@@ -30,6 +31,7 @@ type StatisticsParams struct {
 	PlayerID                     string
 	Since                        *time.Time
 	Until                        *time.Time
+	DeviceType                   string
 	Group                        string
 	Player                       string
 	MinAverageMs, MaxAverageMs   *int
@@ -39,6 +41,7 @@ type StatisticsParams struct {
 }
 
 type StatisticsEntry struct {
+	DeviceType  string    `json:"deviceType"`
 	ScoreID     int64     `json:"scoreId"`
 	Rank        int       `json:"rank"`
 	DisplayName *string   `json:"displayName,omitempty"`
@@ -117,6 +120,10 @@ func (s *Service) Statistics(ctx context.Context, options StatisticsOptions) (*S
 	if options.Group != "games" && options.Group != "players" {
 		return nil, invalidStatisticsFilter("group must be games or players.")
 	}
+	if options.DeviceType != "" && !validDeviceType(options.DeviceType) {
+		return nil, invalidStatisticsFilter("deviceType must be computer or mobile, or omitted for all devices.")
+	}
+	params.DeviceType = options.DeviceType
 	params.Group = options.Group
 	params.Player = strings.TrimSpace(options.Player)
 	if utf8.RuneCountInString(params.Player) > maxDisplayNameLength {

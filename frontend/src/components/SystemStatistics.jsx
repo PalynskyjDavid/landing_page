@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n/useI18n.js";
 import { useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { apiClient } from "../lib/apiClient.js";
@@ -5,6 +6,7 @@ import { averageDuration, errorPercentage, chartPoints } from "../lib/systemStat
 import "./SystemStatistics.css";
 
 function TrafficChart({ points, metric, label }) {
+  const { t, date } = useI18n();
   const values = points.map((point) =>
     metric === "average" ? averageDuration(point) : point.requests,
   );
@@ -14,12 +16,17 @@ function TrafficChart({ points, metric, label }) {
     <figure className="system-chart">
       <figcaption>{label}</figcaption>
       <p className="system-chart-scale">
-        Scale: 0–{Math.ceil(maximum)} {metric === "average" ? "ms" : "requests"}
+        {t("Scale: 0–{{maximum}} {{unit}}", {
+          maximum: Math.ceil(maximum),
+          unit: metric === "average" ? "ms" : t("requests"),
+        })}
       </p>
       <svg
         viewBox="0 0 800 180"
         role="img"
-        aria-label={`${label} over time; exact recent values are in the table below.`}
+        aria-label={t("{{label}} over time; exact recent values are in the table below.", {
+          label,
+        })}
       >
         <line x1="15" y1="160" x2="785" y2="160" className="chart-baseline" />
         <polyline points={chartPoints(values, maximum)} className="system-line" />
@@ -28,17 +35,18 @@ function TrafficChart({ points, metric, label }) {
         )}
       </svg>
       <div className="system-chart-dates">
-        <span>{points[0]?.time.slice(0, 16).replace("T", " ")}</span>
-        <span>{points.at(-1)?.time.slice(0, 16).replace("T", " ")} UTC</span>
+        <span>{date(points[0]?.time)}</span>
+        <span>{date(points.at(-1)?.time)} UTC</span>
       </div>
       {metric === "requests" && (
-        <p className="statistics-note">Solid: requests · Dashed: server errors (5xx)</p>
+        <p className="statistics-note">{t("Solid: requests · Dashed: server errors (5xx)")}</p>
       )}
     </figure>
   );
 }
 
 export default function SystemStatistics() {
+  const { t, n, date } = useI18n();
   const [period, setPeriod] = useState("1h");
   const [route, setRoute] = useState("");
   const query = useQuery({
@@ -61,29 +69,30 @@ export default function SystemStatistics() {
     report?.lastCollectedAt &&
     new Date(report.generatedAt).getTime() - new Date(report.lastCollectedAt).getTime() < 30000;
   return (
-    <section aria-label="System statistics">
-      <h2 className="system-title">API traffic</h2>
+    <section aria-label={t("System statistics")}>
+      <h2 className="system-title">{t("API traffic")}</h2>
       <p className="statistics-note">
-        Anonymous NGINX request summaries, not individual visitors or raw logs. Health checks, this
-        dashboard’s requests and direct debugging ports are excluded.
+        {t(
+          "Anonymous NGINX request summaries, not individual visitors or raw logs. Health checks, this dashboard’s requests and direct debugging ports are excluded.",
+        )}
       </p>
       <div className="statistics-filters system-controls">
         <label>
-          Time range
+          {t("Time range")}
           <select value={period} onChange={(event) => setPeriod(event.target.value)}>
-            <option value="1h">Last hour</option>
-            <option value="24h">Last 24 hours</option>
-            <option value="7d">Last 7 days</option>
+            <option value="1h">{t("Last hour")}</option>
+            <option value="24h">{t("Last 24 hours")}</option>
+            <option value="7d">{t("Last 7 days")}</option>
           </select>
         </label>
         <label>
-          API route
+          {t("API route")}
           <select value={route} onChange={(event) => setRoute(event.target.value)}>
-            <option value="">All tracked API routes</option>
+            <option value="">{t("All tracked API routes")}</option>
             {["/scores", "/scores/leaderboard", "/scores/statistics", "<unmatched>"].map(
               (value) => (
                 <option key={value} value={value}>
-                  {value === "<unmatched>" ? "Unknown API paths" : value}
+                  {value === "<unmatched>" ? t("Unknown API paths") : value}
                 </option>
               ),
             )}
@@ -93,81 +102,100 @@ export default function SystemStatistics() {
           className="ui-btn"
           disabled={query.isFetching}
           onClick={() => query.refetch()}
-          aria-label="Refresh system statistics"
+          aria-label={t("Refresh system statistics")}
         >
-          ↻ Refresh
+          {t("↻ Refresh")}
         </button>
       </div>
       <p role="status">
         {query.isFetching
           ? report
-            ? "Previous data — refreshing…"
-            : "Loading system statistics…"
-          : "Refreshes every 15 seconds."}
+            ? t("Previous data — refreshing…")
+            : t("Loading system statistics…")
+          : t("Refreshes every 15 seconds.")}
       </p>
       {query.isError && (
-        <p role="alert">System statistics are unavailable. Displayed data, if any, is stale.</p>
+        <p role="alert">
+          {t("System statistics are unavailable. Displayed data, if any, is stale.")}
+        </p>
       )}
       {report && (
         <div aria-busy={query.isFetching} className={query.isFetching ? "statistics-stale" : ""}>
           <p className="system-freshness">
-            {fresh ? "Collector reporting" : "Collection delayed or not started"} · Last report:{" "}
-            {report.lastCollectedAt
-              ? new Date(report.lastCollectedAt).toISOString().replace("T", " ")
-              : "none"}
+            {fresh ? t("Collector reporting") : t("Collection delayed or not started")} ·{" "}
+            {t("Last report:")}{" "}
+            {report.lastCollectedAt ? `${date(report.lastCollectedAt)} UTC` : t("none")}
           </p>
           <p className="statistics-note">
-            Displayed: {report.selection.period} ·{" "}
-            {report.selection.route || "all tracked API routes"}. Zero means no requests recorded,
-            not proven uptime. Partial time buckets and collection gaps are possible; this is
-            best-effort telemetry.
+            {t(
+              "Displayed: {{period}} · {{route}}. Zero means no requests recorded, not proven uptime. Partial time buckets and collection gaps are possible; this is best-effort telemetry.",
+              {
+                period: { "1h": t("Last hour"), "24h": t("Last 24 hours"), "7d": t("Last 7 days") }[
+                  report.selection.period
+                ],
+                route:
+                  report.selection.route === "<unmatched>"
+                    ? t("Unknown API paths")
+                    : report.selection.route || t("All tracked API routes"),
+              },
+            )}
           </p>
           {report.droppedEvents > 0 && (
             <p role="alert">
-              At least {report.droppedEvents} telemetry events were discarded by retained collector
-              instances. Graphs may be incomplete.
+              {t(
+                "At least {{count}} telemetry events were discarded by retained collector instances. Graphs may be incomplete.",
+                { count: report.droppedEvents },
+              )}
             </p>
           )}
-          <dl className="statistics-summary" aria-label="Request summary">
+          <dl className="statistics-summary" aria-label={t("Request summary")}>
             {[
-              ["Requests", report.summary.requests],
-              ["Server errors", report.summary.serverErrors],
-              ["Server error rate", `${errorPercentage(report.summary)}%`],
-              ["Average response", `${averageDuration(report.summary)} ms`],
-              ["Not found (404)", report.summary.notFound],
-              ["Rate limited (429)", report.summary.rateLimited],
+              [t("Requests"), report.summary.requests],
+              [t("Server errors"), report.summary.serverErrors],
+              [
+                t("Server error rate"),
+                n(errorPercentage(report.summary) / 100, { style: "percent" }),
+              ],
+              [t("Average response"), `${n(averageDuration(report.summary))} ms`],
+              [t("Not found (404)"), report.summary.notFound],
+              [t("Rate limited (429)"), report.summary.rateLimited],
             ].map(([label, value]) => (
               <div key={label}>
                 <dt>{label}</dt>
-                <dd>{value}</dd>
+                <dd>{typeof value === "number" ? n(value) : value}</dd>
               </div>
             ))}
           </dl>
           <TrafficChart
             points={report.points}
             metric="requests"
-            label="Requests and server errors"
+            label={t("Requests and server errors")}
           />
-          <TrafficChart points={report.points} metric="average" label="Average response time" />
+          <TrafficChart
+            points={report.points}
+            metric="average"
+            label={t("Average response time")}
+          />
           <p className="statistics-note">
-            Most recent 12 time buckets; averages are weighted by request count. Scroll the table
-            horizontally on narrow screens.
+            {t(
+              "Most recent 12 time buckets; averages are weighted by request count. Scroll the table horizontally on narrow screens.",
+            )}
           </p>
           <div
             className="statistics-table-scroll"
             tabIndex={0}
             role="region"
-            aria-label="Recent request statistics, horizontally scrollable"
+            aria-label={t("Recent request statistics, horizontally scrollable")}
           >
             <table>
-              <caption>Recent request statistics</caption>
+              <caption>{t("Recent request statistics")}</caption>
               <thead>
                 <tr>
-                  <th>Time (UTC)</th>
-                  <th>Requests</th>
-                  <th>Client errors (4xx)</th>
-                  <th>Server errors (5xx)</th>
-                  <th>Average</th>
+                  <th>{t("Time (UTC)")}</th>
+                  <th>{t("Requests")}</th>
+                  <th>{t("Client errors (4xx)")}</th>
+                  <th>{t("Server errors (5xx)")}</th>
+                  <th>{t("Average")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -176,11 +204,11 @@ export default function SystemStatistics() {
                   .reverse()
                   .map((point) => (
                     <tr key={point.time}>
-                      <td>{point.time.slice(0, 16).replace("T", " ")}</td>
-                      <td>{point.requests}</td>
-                      <td>{point.clientErrors}</td>
-                      <td>{point.serverErrors}</td>
-                      <td>{point.requests ? `${averageDuration(point)} ms` : "—"}</td>
+                      <td>{date(point.time)}</td>
+                      <td>{n(point.requests)}</td>
+                      <td>{n(point.clientErrors)}</td>
+                      <td>{n(point.serverErrors)}</td>
+                      <td>{point.requests ? `${n(averageDuration(point))} ms` : "—"}</td>
                     </tr>
                   ))}
               </tbody>

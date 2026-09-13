@@ -30,6 +30,7 @@ func NewPostgresRepository(db postgresQueryRower) *PostgresRepository {
 }
 
 func (r *PostgresRepository) Create(ctx context.Context, params CreateParams) (*Result, bool, error) {
+	params.DeviceType = defaultDeviceType(params.DeviceType)
 	timesJSON, err := json.Marshal(params.Times)
 	if err != nil {
 		return nil, false, apperror.Internal("score_times_encode_failed", "Failed to save score.", fmt.Errorf("marshal times: %w", err))
@@ -43,6 +44,7 @@ func (r *PostgresRepository) Create(ctx context.Context, params CreateParams) (*
 		Missclicks:   params.Missclicks,
 		AverageMs:    params.AverageMs,
 		DisplayName:  params.DisplayName,
+		DeviceType:   params.DeviceType,
 	}
 
 	err = r.db.QueryRow(ctx, postgresInsertResultSQL, pgx.NamedArgs{
@@ -53,6 +55,7 @@ func (r *PostgresRepository) Create(ctx context.Context, params CreateParams) (*
 		"missclicks":    params.Missclicks,
 		"average_ms":    params.AverageMs,
 		"display_name":  params.DisplayName,
+		"device_type":   params.DeviceType,
 	}).Scan(&result.ID, &result.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		existing, lookupErr := r.findBySubmissionID(ctx, params.SubmissionID)
@@ -85,6 +88,7 @@ func (r *PostgresRepository) findBySubmissionID(ctx context.Context, submissionI
 		&result.PlayerID,
 		&displayName,
 		&result.CreatedAt,
+		&result.DeviceType,
 	)
 	if err != nil {
 		return nil, apperror.Internal("result_idempotency_lookup_failed", "Failed to save score.", err)

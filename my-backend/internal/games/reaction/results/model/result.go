@@ -11,6 +11,7 @@ type Result struct {
 	Missclicks   int       `json:"missclicks"`
 	AverageMs    int       `json:"averageMs"`
 	DisplayName  *string   `json:"displayName,omitempty"`
+	DeviceType   string    `json:"deviceType"`
 	CreatedAt    time.Time `json:"createdAt"`
 }
 

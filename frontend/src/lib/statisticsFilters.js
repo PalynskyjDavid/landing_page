@@ -8,6 +8,7 @@ export const defaultStatisticsFilters = {
   secondary: "missclicks",
   secondaryDirection: "best",
   player: "",
+  deviceType: "",
   from: "",
   to: "",
   minAverageMs: "",
@@ -29,6 +30,7 @@ export function statisticsParams(filters) {
   };
   for (const name of [
     "player",
+    "deviceType",
     "minAverageMs",
     "maxAverageMs",
     "minBestMs",

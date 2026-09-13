@@ -69,6 +69,7 @@ func (r *fakeRepository) Create(_ context.Context, params CreateParams) (*Result
 		Missclicks:   params.Missclicks,
 		AverageMs:    params.AverageMs,
 		DisplayName:  params.DisplayName,
+		DeviceType:   params.DeviceType,
 		CreatedAt:    r.createdAt,
 	}, true, nil
 }

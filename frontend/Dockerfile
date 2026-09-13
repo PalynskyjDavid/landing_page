@@ -5,7 +5,7 @@ ENV SCARF_ANALYTICS=false
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY index.html vite.config.js postcss.config.js ./
-COPY scripts/apiDocsPlugin.js ./scripts/apiDocsPlugin.js
+COPY scripts/apiDocsPlugin.js scripts/flowentoBudget.js ./scripts/
 COPY src/ ./src/
 COPY public/ ./public/
 # Public build configuration, not a secret or a runtime Docker environment variable.

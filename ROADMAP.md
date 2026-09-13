@@ -2,6 +2,92 @@
 
 This roadmap is both the project TODO list and the working agreement for learning-oriented development.
 
+## Upcoming website polish
+
+Requirements added by David on 2026-09-12. Localization, device filtering and the
+Flowento showcase are implemented and locally verified, including the full
+production-container E2E suite on 2026-09-13. These changes are not committed, pushed or deployed.
+
+- [x] Add English and Czech localization across the existing public website, including
+  navigation, current homepage placeholders, game, statistics, and user-facing status/error
+  messages. Provide an EN/CZ language switch and remember the selected language.
+  Use `en` and `cs` internally, set the document language, and format dates/numbers
+  for the selected locale. Keep API field names and stored score data unchanged.
+- [ ] Review and fix mobile responsiveness on Home, Game and Statistics in both
+  languages. Check narrow phone widths, portrait/landscape, navigation, touch
+  controls, forms, charts, tables and notifications. Avoid page-wide horizontal
+  overflow; keep wide data tables usable with contained scrolling where needed.
+  Add representative mobile browser tests and review the rendered layouts.
+
+Localization uses i18next/react-i18next with bundled catalogs; localStorage holds
+only the language preference. See [the localization guide](docs/localization.md).
+
+Full-stack checkpoint before the Hand Controller addition (2026-09-13): the shared
+quality gate passed with 150 frontend
+unit tests, Go tests, formatting/lint, both builds and 12 deployment safeguards.
+All 26 full-stack Chromium scenarios pass against the production NGINX container,
+real Go API and isolated PostgreSQL test database. This includes EN/CZ continuity,
+device filtering and seven Flowento scenarios. See [the verification record](docs/testing/e2e.md#flowento-localization-and-device-filters-2026-09-13).
+The subsequent Hand Controller slice passes 158 frontend unit tests and four focused
+production-browser checks; its full 28-scenario rerun is still pending.
+These checks do not replace a full real-device/accessibility review.
+
+### Next small slice: finish the public homepage
+
+- [ ] Replace the generic hero and developer instructions with David's full-stack
+  introduction and interest in connecting software work with business needs, in EN/CZ.
+- [ ] Add approved public contact, GitHub and CV links; do not publish private
+  CV drafts or editorial notes automatically.
+- [ ] Review Home/Game/Statistics/Flowento on phones, keyboard navigation and both themes.
+- [ ] Review the release diff, commit the approved files and require hosted CI to pass.
+- [ ] Use the existing controlled deployment process: backup, migration 009, matching
+  API/frontend images, and a live HTTPS smoke check. No infrastructure expansion is needed.
+
+### Flowento showcase and loading (2026-09-13)
+
+- [x] Integrate the EN/CZ project route and technology-by-technology contribution story.
+- [x] Add the current CAD model, color-coded parts and staged disassembly, including
+  the housing access door. Retire the original comparison model.
+- [x] Load the project route separately and fetch Three.js/model only on explicit opt-in.
+- [x] Verify gzip, content-hashed caching and real browser cache reuse in NGINX.
+  Renderer + model transfer 257,573 bytes (about 258 kB), around 74% less than raw.
+- [x] Fix direct-load/reload routing for folders left behind after moving public assets.
+- [x] Verify mobile EN/CZ layout, WebGL fallback/recovery, animation cancellation and cleanup.
+
+See [the Flowento guide](docs/flowento-project.md). Original CAD and private portfolio
+notes are not public assets. Existing E2E data was backed up, restored exactly and
+left stopped; development and production databases were not changed.
+
+### Hand Controller showcase (2026-09-13)
+
+- [x] Add a lazy EN/CZ project page and homepage card for the newer Rust/Tauri prototype.
+- [x] Explain the gesture-to-action pipeline, technology contributions, evaluation
+  lessons and prototype limitations, with AI-assisted development described accurately.
+- [x] Add a lightweight SVG pinch-to-click illustration without camera or OS access.
+- [x] Verify 158 frontend unit tests, production build, four focused NGINX browser
+  scenarios, EN/CZ widths and desktop/mobile light/dark screenshots.
+- [ ] Review the project wording and select approved real-app screenshots/video if wanted.
+- [ ] Run the expanded 28-scenario full-stack suite before releasing the combined changes.
+
+See [the Hand Controller guide](docs/hand-controller-project.md). The 26-test full
+run above predates this new page; focused checks do not replace that full rerun.
+No databases or original Hand Controller application files were changed.
+
+### Device filter and stable buttons (2026-09-12)
+
+- [x] Reserve stable space for language/theme/navigation and save/refresh states.
+- [x] Add migration 009: computer/mobile, all previous scores default to computer.
+- [x] Carry device type through validated API writes, offline queue and idempotency.
+- [x] Add translated server-side filtering and device labels to statistics.
+- [x] Verify SQL backfill/filtering/replay and real browser/API/DB behavior in isolation.
+- [x] Run the complete Compose E2E suite (26 scenarios pass on 2026-09-13).
+- [ ] Review the complete change set before committing/releasing.
+- [ ] Apply the pending migration to the target database during the next controlled rollout.
+
+See [device types and verification](docs/device-types.md). These changes remain local.
+
+## Earlier release checkpoints
+
 Current focus (2026-09-09): finish the game/statistics release, then choose safe
 hosting so David can share it with employers. Project showcase, Kubernetes and
 additional minigames are post-launch work. The new `/statistics` page moves the

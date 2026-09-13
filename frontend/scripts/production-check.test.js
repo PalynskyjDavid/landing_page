@@ -236,3 +236,19 @@ test("restore check only starts and removes the networkless scratch service", (t
   assert(f.calls().includes("rm --stop --force restore-check"));
   assert(!f.calls().includes("exec -T db "));
 });
+
+test("frontend image includes the loading-budget plugin and its static model assets", () => {
+  const ignore = read("frontend/.dockerignore");
+  assert(ignore.includes("!scripts/flowentoBudget.js"));
+  assert(ignore.includes("!src/**"));
+  assert(read("frontend/Dockerfile").includes("scripts/flowentoBudget.js"));
+  assert(read("frontend/vite.config.js").includes("flowentoBudgetPlugin()"));
+  assert(existsSync(path.join(root, "frontend/src/assets/flowento/mirror-frame-2025-10.glb")));
+  assert(existsSync(path.join(root, "frontend/src/assets/flowento/mirror-preview.png")));
+});
+
+test("SPA fallback ignores directories left by moved public assets", () => {
+  const config = read("frontend/nginx.conf");
+  assert.match(config, /location \/ \{ try_files \$uri \/index\.html; \}/);
+  assert(!config.includes("try_files $uri $uri/"));
+});

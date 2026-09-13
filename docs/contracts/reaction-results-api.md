@@ -1,7 +1,7 @@
 # Reaction Results API Contract
 
 - Status: Implemented score/leaderboard contract, with deferred work listed below
-- Updated: 2026-09-08
+- Updated: 2026-09-12
 - Canonical implementation: `my-backend`
 
 ## Purpose
@@ -26,7 +26,8 @@ Content-Type: application/json
   "submissionId": "550e8400-e29b-41d4-a716-446655440000",
   "times": [241, 228, 255, 249, 235],
   "missclicks": 1,
-  "displayName": "David"
+  "displayName": "David",
+  "deviceType": "computer"
 }
 ```
 
@@ -37,6 +38,7 @@ The implementation applies these rules:
 - `missclicks` must be zero or greater; omitted or JSON `null` currently decodes to zero.
 - `displayName` is optional; it is trimmed, an empty value becomes `null`, and its maximum length is 24 characters.
 - A newly saved non-empty name becomes the displayed name on all scores with the same `player_id`. A blank name keeps an existing name; players who have never set one remain Anonymous. Names are not unique and are not authentication.
+- `deviceType` is optional: `computer` or `mobile`. Omitted, null or empty defaults to `computer` for old clients/queued submissions. Other values return `400 score_invalid_device_type`. The browser captures this coarse category when a game starts and retains it through retries; it is not verified device identity.
 - Unknown JSON fields are rejected.
 
 The browser does not send `playerId` in the JSON body. The backend reads it from the `reaction_player_id` cookie so a caller cannot select another player merely by changing the request body. If the cookie is missing or invalid, the backend generates a UUID and returns a one-year, `HttpOnly`, `SameSite=Lax` cookie. Production sets the cookie's `Secure` attribute through `COOKIE_SECURE=true`.
@@ -47,7 +49,7 @@ Repeat the unchanged submission with the cookie; the frontend does this once
 automatically. A second cookie-required response is a permanent failure (for
 example, blocked cookies). Losing the first cookie response can no longer strand
 a saved score under an unknown identity. Direct API callers must follow this
-handshake or first GET the leaderboard. See ADR 0003; contract version is 2.0.0.
+handshake or first GET the leaderboard. See ADR 0003; the cookie handshake was introduced in contract 2.0.0. The current version is in OpenAPI.
 
 The client does not send `totalRounds` or `averageMs`. The service derives a round count of five and calculates the average from `times` using integer division, which rounds a positive fractional result down. For example, a sum of `1208` divided by `5` is stored as `241`.
 
@@ -65,13 +67,14 @@ Content-Type: application/json
   "totalRounds": 5,
   "averageMs": 241,
   "displayName": "David",
+  "deviceType": "computer",
   "createdAt": "2026-09-03T14:30:00Z"
 }
 ```
 
 `totalRounds` and `averageMs` in this response are the values calculated and stored by the backend.
 
-Repeating the same `submissionId` with identical normalized score data returns the existing score with `200 OK`. It does not insert another row. Reusing it with different times, missclicks, display name, or player cookie returns `409 Conflict`.
+Repeating the same `submissionId` with identical normalized score data returns the existing score with `200 OK`. It does not insert another row. Reusing it with different times, missclicks, display name, device type, or player cookie returns `409 Conflict`.
 
 The POST response and retry comparison use the original submitted name, preserved
 in `scores.submitted_display_name`. Leaderboard reads use the current synchronized
@@ -100,6 +103,7 @@ is no separate profile-edit endpoint or client-side name timestamp yet.
 | `400`       | `score_invalid_time`          | A reaction time is not positive.                                                         |
 | `400`       | `score_invalid_missclicks`    | `missclicks` is negative.                                                                |
 | `400`       | `score_display_name_too_long` | Trimmed `displayName` is longer than 24 characters.                                      |
+| `400`       | `score_invalid_device_type` | Device type is not computer or mobile (omitted/null/empty defaults to computer). |
 | `409`       | `score_submission_conflict`   | `submissionId` already belongs to different normalized score data or a different player. |
 
 Unexpected failures use status `500` and do not expose raw internal details.
@@ -207,3 +211,13 @@ Pagination remains deferred until the amount of data makes it useful.
 7. Implement the frontend against the agreed contract.
 
 Dependencies point inward: HTTP handlers depend on service contracts, services depend on repository interfaces, and PostgreSQL implements those interfaces. Tests can substitute fakes at either boundary while unfinished layers are developed.
+
+## Device statistics
+
+`GET /scores/statistics?deviceType=mobile` filters before grouping, ranking,
+minimum game counts and summary calculations. Omit the filter for all devices.
+Each statistics entry includes `deviceType`; player groups may return `mixed`
+when their matching games include both types. `mixed` is not accepted on writes
+or as a filter. The legacy `/scores/leaderboard` endpoint is unchanged.
+Migration 009 classifies every existing score as `computer`, as requested.
+See [device classification and rollout](../device-types.md).

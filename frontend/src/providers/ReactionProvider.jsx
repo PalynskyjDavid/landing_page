@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { GameContext } from "./reactionGameContext.js";
 import { useScoreDelivery } from "./scoreDeliveryContext.js";
 
+import { detectDeviceType } from "../lib/deviceType.js";
+
 const MIN_DELAY = 500;
 const MAX_DELAY = 5000;
 const REQUIRED_ROUND_COUNT = 5;
@@ -52,7 +54,15 @@ export function GameProvider({ children }) {
 
       if (phase === "start" || phase === "summary") {
         setTimers();
-        return { ...prev, phase: "wait", round: 1, times: [], misslicks: 0, message: "Wait..." };
+        return {
+          ...prev,
+          deviceType: detectDeviceType(),
+          phase: "wait",
+          round: 1,
+          times: [],
+          misslicks: 0,
+          message: "Wait...",
+        };
       }
 
       if (phase === "wait") {
@@ -71,7 +81,7 @@ export function GameProvider({ children }) {
             ...prev,
             phase: "result",
             times: newTimes,
-            message: `Time: ${score}ms. Click for next round.`,
+            message: "Time: {{score}}ms. Click for next round.",
           };
         }
       }
@@ -104,6 +114,7 @@ export function GameProvider({ children }) {
     const payload = {
       submissionId: currentSubmissionId,
       times: game.times,
+      deviceType: game.deviceType ?? "computer",
       missclicks: game.misslicks,
     };
 

@@ -208,3 +208,36 @@ describe("score delivery", () => {
     delivery.stop();
   });
 });
+
+it("preserves the captured device across retries and an outbox restart without rewriting legacy entries", async () => {
+  const outbox = createMemoryOutbox();
+  const mobile = { ...submission(1), deviceType: "mobile" };
+  const sendScore = vi.fn().mockRejectedValue(retryableError());
+  const options = {
+    outbox,
+    sendScore,
+    checkReadiness: vi.fn(),
+    retryDelaysMs: [],
+    probeDelayMs: 60000,
+    eventTarget: undefined,
+  };
+  const first = createScoreDelivery(options);
+  await first.start();
+  await first.submit(mobile);
+  first.stop();
+  expect(outbox.records.get(mobile.submissionId).deviceType).toBe("mobile");
+  await outbox.put(submission(2)); // Created before the device field existed.
+  sendScore.mockResolvedValue({ id: 1 });
+  const restarted = createScoreDelivery(options);
+  try {
+    await restarted.start();
+    expect(sendScore.mock.calls.map(([payload]) => payload)).toEqual([
+      mobile,
+      mobile,
+      submission(2),
+    ]);
+    expect(outbox.records.size).toBe(0);
+  } finally {
+    restarted.stop();
+  }
+});

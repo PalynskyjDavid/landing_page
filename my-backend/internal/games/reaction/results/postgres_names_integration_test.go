@@ -57,6 +57,9 @@ func newNameTestDatabase(t *testing.T) (*pgx.Conn, *pgx.ConnConfig) {
 	for version := 1; version <= 5; version++ {
 		applyNameTestMigration(t, conn, version, false)
 	}
+	// These tests deliberately exercise migrations 006/007 separately. The
+	// current repository also needs the independent device column from 009.
+	applyNameTestMigration(t, conn, 9, false)
 	return conn, config
 }
 

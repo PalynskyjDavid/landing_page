@@ -14,7 +14,8 @@ func parseStatisticsOptions(r *http.Request) (StatisticsOptions, error) {
 	query := r.URL.Query()
 	options := StatisticsOptions{
 		LeaderboardOptions: leaderboard, Scope: query.Get("scope"),
-		Period: query.Get("period"), Group: query.Get("group"), Player: query.Get("player"),
+		DeviceType: query.Get("deviceType"),
+		Period:     query.Get("period"), Group: query.Get("group"), Player: query.Get("player"),
 	}
 	for name, dest := range map[string]**int{
 		"minAverageMs": &options.MinAverageMs, "maxAverageMs": &options.MaxAverageMs,

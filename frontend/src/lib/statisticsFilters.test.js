@@ -40,3 +40,12 @@ describe("statistics filter requests", () => {
     });
   });
 });
+
+it("includes the device filter only when selected, including player groups", () => {
+  expect(statisticsParams(defaultStatisticsFilters)).not.toHaveProperty("deviceType");
+  for (const group of ["games", "players"]) {
+    expect(
+      statisticsParams({ ...defaultStatisticsFilters, group, deviceType: "mobile" }),
+    ).toMatchObject({ group, deviceType: "mobile" });
+  }
+});

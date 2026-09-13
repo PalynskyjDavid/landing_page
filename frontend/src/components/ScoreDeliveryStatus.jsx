@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n/useI18n.js";
 import { useScoreDelivery } from "../providers/scoreDeliveryContext.js";
 
 const availabilityLabels = {
@@ -8,6 +9,7 @@ const availabilityLabels = {
 };
 
 export default function ScoreDeliveryStatus() {
+  const { t, errorText } = useI18n();
   const { availability, pendingCount, retryNow, systemError } = useScoreDelivery();
 
   if (pendingCount === 0 && !systemError) {
@@ -21,17 +23,14 @@ export default function ScoreDeliveryStatus() {
       className="mx-auto my-4 w-[98%] max-w-[600px] rounded-xl border p-4"
       aria-live="polite"
     >
-      {label && <p>{label}</p>}
-      {pendingCount > 0 && (
-        <p>
-          {pendingCount} {pendingCount === 1 ? "score is" : "scores are"} safely queued in this
-          browser.
-        </p>
+      {label && <p>{t(label)}</p>}
+      {pendingCount > 0 && <p>{t("scoresQueued", { count: pendingCount })}</p>}
+      {systemError && pendingCount === 0 && (
+        <p>{t("Delivery monitor error: {{message}}", { message: errorText(systemError) })}</p>
       )}
-      {systemError && pendingCount === 0 && <p>Delivery monitor error: {systemError.message}</p>}
       {pendingCount > 0 && availability === "unavailable" && (
         <button type="button" className="ui-btn mt-3" onClick={() => void retryNow()}>
-          Try now
+          {t("Try now")}
         </button>
       )}
     </section>

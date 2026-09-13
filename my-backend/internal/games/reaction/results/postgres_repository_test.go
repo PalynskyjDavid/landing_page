@@ -50,7 +50,7 @@ func (r *fakePostgresRow) Scan(dest ...any) error {
 		return r.err
 	}
 
-	if len(dest) == 9 {
+	if len(dest) == 10 {
 		return r.scanStoredResult(dest)
 	}
 
@@ -105,6 +105,7 @@ func (r *fakePostgresRow) scanStoredResult(dest []any) error {
 		*displayName = pgtype.Text{String: *r.result.DisplayName, Valid: true}
 	}
 	*dest[8].(*time.Time) = r.result.CreatedAt
+	*dest[9].(*string) = r.result.DeviceType
 
 	return nil
 }
@@ -157,6 +158,7 @@ func TestPostgresRepositoryCreateMapsQueryAndReturnsStoredResult(t *testing.T) {
 	repository := NewPostgresRepository(fakeDB)
 	displayName := "David"
 	params := CreateParams{
+		DeviceType:   deviceMobile,
 		SubmissionID: testSubmissionID,
 		PlayerID:     testPlayerID,
 		TotalRounds:  requiredRoundCount,
@@ -193,6 +195,7 @@ func TestPostgresRepositoryCreateMapsQueryAndReturnsStoredResult(t *testing.T) {
 		Missclicks:   params.Missclicks,
 		AverageMs:    params.AverageMs,
 		DisplayName:  params.DisplayName,
+		DeviceType:   defaultDeviceType(params.DeviceType),
 		CreatedAt:    createdAt,
 	}
 	if !reflect.DeepEqual(result, wantResult) {
@@ -219,6 +222,7 @@ func TestPostgresRepositoryCreateMapsQueryAndReturnsStoredResult(t *testing.T) {
 		"missclicks":    params.Missclicks,
 		"average_ms":    params.AverageMs,
 		"display_name":  params.DisplayName,
+		"device_type":   defaultDeviceType(params.DeviceType),
 	}
 	if !reflect.DeepEqual(namedArgs, wantArgs) {
 		t.Fatalf("unexpected query arguments:\nwant: %#v\ngot:  %#v", wantArgs, namedArgs)

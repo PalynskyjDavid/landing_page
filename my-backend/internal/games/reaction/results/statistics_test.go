@@ -101,6 +101,7 @@ func TestStatisticsRepositoryUsesBoundArgumentsAndDecodesSummary(t *testing.T) {
 	repo := NewPostgresRepository(db)
 	got, err := repo.ReadStatistics(context.Background(), StatisticsParams{
 		LeaderboardParams: LeaderboardParams{Limit: 5, PrimarySort: LeaderboardSort{Field: "games", Direction: "worst"}, SecondarySort: LeaderboardSort{Field: "averageMs", Direction: "best"}},
+		DeviceType:        "mobile",
 		Group:             "players", Player: "';DROP TABLE scores;--", MinGames: 1,
 	})
 	if err != nil {
@@ -111,6 +112,9 @@ func TestStatisticsRepositoryUsesBoundArgumentsAndDecodesSummary(t *testing.T) {
 	}
 	if strings.Contains(db.gotSQL, "DROP TABLE") || strings.Contains(db.gotSQL, "/*ORDER*/") || strings.Contains(db.gotSQL, "/*GROUP*/") {
 		t.Fatal("unsafe or incomplete SQL")
+	}
+	if db.gotArgs[0].(pgx.NamedArgs)["device_type"] != "mobile" {
+		t.Fatal("device was not parameterized")
 	}
 	if db.gotArgs[0].(pgx.NamedArgs)["player"] != "';DROP TABLE scores;--" {
 		t.Fatal("name was not parameterized")

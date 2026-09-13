@@ -305,3 +305,74 @@ Layer,              Purpose,                    Example
 }
 
 /* 5) State = .dark on html + data/aria states in markup */
+
+/* Locale controls wrap with navigation so longer Czech labels fit on phones. */
+.shell-header {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem;
+  background: rgb(var(--bg));
+}
+.shell-header nav {
+  display: flex;
+  flex-wrap: wrap;
+}
+.shell-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.language-switcher {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+.language-switcher .ui-btn {
+  padding: 0.5rem 0.65rem;
+  min-height: 44px;
+}
+.language-switcher [aria-pressed="true"] {
+  background: rgb(var(--fg));
+  color: rgb(var(--bg));
+}
+@media (max-width: 540px) {
+  .shell-header {
+    position: static;
+  }
+  .shell-header nav {
+    margin: 0 auto;
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+/* Reserve room for the longest EN/CZ label and changing button states. */
+.theme-toggle {
+  inline-size: 9.5rem;
+  min-block-size: 2.75rem;
+  flex: 0 0 9.5rem;
+}
+.language-switcher .ui-btn {
+  inline-size: 3rem;
+  flex: 0 0 3rem;
+}
+.shell-nav .ladder-link {
+  inline-size: 6rem;
+  min-block-size: 2.75rem;
+  flex: 0 0 6rem;
+  justify-content: center;
+  border: 1px solid transparent;
+}
+.shell-nav .ladder-link:hover {
+  border-color: rgb(var(--fg) / 0.9);
+}
+.statistics-refresh {
+  inline-size: 10.5rem;
+  max-inline-size: 100%;
+  min-block-size: 2.75rem;
+}
+.score-save-button {
+  inline-size: 100%;
+  min-block-size: 3rem;
+}

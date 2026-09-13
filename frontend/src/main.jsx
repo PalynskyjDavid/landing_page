@@ -9,6 +9,7 @@ import { ScoreDeliveryProvider } from "./providers/ScoreDeliveryProvider.jsx";
 import ScoreDeliveryNotifications from "./components/ScoreDeliveryNotifications.jsx";
 import { ConnectionSimulationBanner } from "./components/ConnectionSimulation.jsx";
 import "./index.css";
+import "./i18n/index.js";
 
 if (import.meta.env.DEV) {
   setApiClientHooks({

@@ -1,8 +1,9 @@
 # Browser tests: setup, reset, run, inspect
 
-Latest verification: [statistics and submission limits, 2026-09-09](#statistics-and-submission-limits-2026-09-09).
+Latest focused verification: [Hand Controller, 2026-09-13](#hand-controller-focused-checks-2026-09-13).
+Last full-stack verification: [26 scenarios before the Hand Controller addition](#flowento-localization-and-device-filters-2026-09-13).
 
-The fourteen scenarios use real Chromium, production React assets served by NGINX,
+The 28 registered scenarios use real Chromium, production React assets served by NGINX,
 the containerized canonical Go backend, and PostgreSQL 16. Swagger alone uses
 a development Vite server. Score/leaderboard values come from the real API; the lost-response
 test deliberately discards selected real responses rather than inventing a save.
@@ -38,6 +39,21 @@ test deliberately discards selected real responses rather than inventing a save.
     spoofing forwarding headers; check JSON 429/Retry-After and oversized-body 413.
 13. **Cooldown recovery:** inject one 429, navigate and reload while a score stays
     queued, then verify the same payload saves once after the cooldown.
+
+14. **System statistics:** private request-ID correlation, aggregate-only public data,
+    API/DB-outage buffering, error/rate-limit counters and responsive charts.
+15. **Localization (three scenarios):** active game/outbox continuity, Czech mobile
+    statistics, unchanged filter values and blocked preference-storage fallback.
+16. **Device types (two scenarios):** stable changing controls, mobile/computer
+    classification, persisted score payload and server-side filtering/grouping.
+17. **Flowento (seven scenarios):** direct navigation/reload, EN/CZ mobile layout,
+    real 3D rendering/cleanup, model failure/context loss, unsupported WebGL,
+    part isolation/staged disassembly, animation cancellation, lazy loading,
+    real gzip transfer size and browser HTTP-cache reuse.
+
+18. **Hand Controller (two scenarios):** lazy navigation/reload, EN/CZ mobile
+    layouts, keyboard-accessible illustrative action gating, contrast, preserved
+    language-switch state and no camera/model access.
 
 The idempotency and invalid-input tests call the real API using `page.request`;
 they do not exercise the frontend submission flow. The offline scenario uses
@@ -473,3 +489,57 @@ The existing npm audit findings (10 total) were not changed by this setup.
   Request metrics begin with new collected traffic; they are not reconstructed
   from old games. No commit/push, hosted-CI success, registry publication or public
   deployment is claimed. See [the guide](../observability.md) and ADR 0006.
+
+### Flowento, localization and device filters (2026-09-13)
+
+- Docker Engine 29.7.2 and Compose 5.5.1 were available. The API, NGINX web and
+  collector images were rebuilt using the normal E2E runner, with PostgreSQL 16
+  and real Chromium. All 26 scenarios passed in 9.2 minutes; retries remained disabled.
+- The first run exposed six Flowento failures caused by one NGINX directory
+  redirect, plus a System Statistics assertion still expecting raw filter codes.
+  The fallback now checks files only before React's index.html, and the assertion
+  expects the localized readable labels. Existing backend/SQL behavior was unchanged.
+  The full suite was rerun after these fixes, not just the failed tests.
+- Actual encoded renderer/model bodies total 257,573 bytes; both use gzip and
+  immutable content-hashed URLs. Closing/reopening the viewer reused the renderer
+  module and fetched the model from browser cache with zero transferred bytes.
+  Home, hover and normal project reading did not load 3D.
+- The shared quality gate passed: formatting, zero lint issues, Go tests, 150
+  frontend unit tests across 24 files, both builds and 12 deployment safeguard tests.
+  The lazy renderer still emits Vite's large-chunk advisory; it is not eager-loaded.
+- Before each full run, the original stopped E2E database was backed up using the
+  existing backup helpers. Each archive was restored separately and compared to
+  every source public table and sequence before resetting any test data. After
+  the suite, the original schema-8 database with three scores was restored and
+  matched the same fingerprint. Only the disposable test-run data was discarded.
+  Backups remain in ignored .backups/; the E2E database is stopped again.
+- The extra local data-preservation wrapper encountered a lingering connection
+  during the final database-name exchange. Restoration was completed after stopping
+  and restarting only the owned E2E database, and verified against the original
+  archive again. This was separate from the successful browser run and normal app
+  container cleanup; no production restore helper or database was changed.
+- The ordinary frontend/playwright-report and frontend/test-results directories
+  contain the final full run. Development events_db and production were untouched.
+  Migration 009 still needs the normal controlled target-database rollout.
+- No commit, push, new hosted-CI result or live deployment is claimed. These checks
+  are not a new dependency/image security audit or a physical-device review.
+
+### Hand Controller focused checks (2026-09-13)
+
+The new hand-controller.spec.js registers two scenarios using the normal isolated
+fixture. For this frontend-only slice, its two exported scenarios and the existing
+Flowento navigation/lazy-loading scenarios passed in Chromium against a temporary
+production NGINX image, without starting any API or database. Both direct-route
+spellings returned 200 HTML, and desktop/Czech mobile light/dark screenshots were
+reviewed. The temporary frontend container was removed afterward.
+
+The shared quality gate passed with 158 frontend unit tests and 12 deployment
+safeguards. After a visual contrast fix, the frontend checks, container build and
+all four focused browser scenarios passed again. The full suite now has 28 cases;
+it has not been rerun since the prior 26-case checkpoint. The ordinary Playwright
+report still represents that prior full run, not this focused verification.
+No database data, public deployment or source-control history changed.
+
+See [Hand Controller scope and evidence](../hand-controller-project.md). Run the
+registered cases with task test:e2e -- hand-controller.spec.js; the usual runner
+resets its test database, unlike the temporary frontend-only verification here.

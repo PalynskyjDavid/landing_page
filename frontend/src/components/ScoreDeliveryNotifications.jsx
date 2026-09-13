@@ -1,9 +1,11 @@
+import { useI18n } from "../i18n/useI18n.js";
 import { useEffect, useState } from "react";
 import { createDeliveryNotifications } from "../lib/deliveryNotifications.js";
 import { scoreDelivery } from "../services/scoreDelivery.js";
 import "./ScoreDeliveryNotifications.css";
 
 function NotificationCard({ notification, onDismiss }) {
+  const { t } = useI18n();
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const { title, message, tone, busy, autoCloseMs } = notification;
@@ -57,13 +59,17 @@ function NotificationCard({ notification, onDismiss }) {
         )}
       </span>
       <div className="delivery-notice-copy">
-        <p className="delivery-notice-title">{title}</p>
-        <p className="delivery-notice-message">{message}</p>
+        <p className="delivery-notice-title">
+          {t(notification.titleKey ?? title, notification.values)}
+        </p>
+        <p className="delivery-notice-message">
+          {t(notification.messageKey ?? message, notification.values)}
+        </p>
       </div>
       <button
         type="button"
         className="delivery-notice-dismiss"
-        aria-label="Dismiss notification"
+        aria-label={t("Dismiss notification")}
         onClick={onDismiss}
       >
         <svg

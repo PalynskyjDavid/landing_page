@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n/useI18n.js";
 import { useState } from "react";
 import { useGame } from "../providers/reactionGameContext.js";
 
@@ -49,6 +50,7 @@ function Card({ children, className = "", style = {} }) {
 }
 
 export default function ReactionGame() {
+  const { t, n, errorText } = useI18n();
   const {
     game,
     evaluateRound,
@@ -91,12 +93,16 @@ export default function ReactionGame() {
     return (
       <Card>
         <div className="summary-screen p-6 w-full">
-          <h2>Finished!</h2>
-          <p>Average: {averageMs} ms</p>
-          <p>Misclicks: {game.misslicks}</p>
+          <h2>{t("Finished!")}</h2>
+          <p>
+            {t("Average:")} {n(averageMs)} ms
+          </p>
+          <p>
+            {t("Misclicks:")} {n(game.misslicks)}
+          </p>
 
           <form onSubmit={submitScore} className="flex flex-col gap-3 mt-4">
-            <label htmlFor="display-name">Display name (optional)</label>
+            <label htmlFor="display-name">{t("Display name (optional)")}</label>
             <input
               id="display-name"
               aria-describedby="display-name-help"
@@ -105,50 +111,60 @@ export default function ReactionGame() {
               value={displayName}
               disabled={isSavingScore || isScoreQueued || isScoreSaved}
               onChange={(event) => setDisplayName(event.target.value)}
-              placeholder="Name or leave blank"
+              placeholder={t("Name or leave blank")}
             />
             <p id="display-name-help" className="text-sm">
-              A name updates all your scores in this browser profile. Leave blank to keep your
-              existing name, or stay Anonymous if you have never set one.
+              {t(
+                "A name updates all your scores in this browser profile. Leave blank to keep your existing name, or stay Anonymous if you have never set one.",
+              )}
             </p>
             <button
               type="submit"
-              className="ui-btn ui-surface-inverse"
+              className="ui-btn ui-surface-inverse score-save-button"
               disabled={isSavingScore || isScoreQueued || isScoreSaved}
             >
               {isScoreQueued
-                ? "Queued for delivery"
+                ? t("Queued for delivery")
                 : isSavingScore
-                  ? "Saving..."
+                  ? t("Saving...")
                   : isScoreSaved
-                    ? "Score saved"
-                    : "Save score"}
+                    ? t("Score saved")
+                    : t("Save score")}
             </button>
           </form>
 
           {isSavingScore && scoreDeliveryAttempt > 1 && (
             <p role="status">
-              Retrying — attempt {scoreDeliveryAttempt} of {scoreDeliveryMaxAttempts}
+              {t("Retrying — attempt {{attempt}} of {{maximum}}", {
+                attempt: scoreDeliveryAttempt,
+                maximum: scoreDeliveryMaxAttempts,
+              })}
             </p>
           )}
           {isScoreQueued && (
             <div role="status" className="mt-3">
-              <p>Your score is safely stored in this browser and will be sent after recovery.</p>
+              <p>
+                {t("Your score is safely stored in this browser and will be sent after recovery.")}
+              </p>
               {deliveryAvailability === "unavailable" && (
                 <button
                   type="button"
                   className="ui-btn mt-2"
                   onClick={() => void retryQueuedScores()}
                 >
-                  Try now
+                  {t("Try now")}
                 </button>
               )}
             </div>
           )}
-          {scoreSaveError && <p role="alert">Could not save score: {scoreSaveError.message}</p>}
+          {scoreSaveError && (
+            <p role="alert">
+              {t("Could not save score: {{message}}", { message: errorText(scoreSaveError) })}
+            </p>
+          )}
 
           <button className="ui-btn mt-4" onClick={resetGame}>
-            Play again
+            {t("Play again")}
           </button>
         </div>
       </Card>
@@ -175,14 +191,14 @@ export default function ReactionGame() {
         {game.round != 0 ? (
           <>
             <p>
-              Round {game.round} / {game.totalRounds}
+              {t("Round {{round}} / {{total}}", { round: game.round, total: game.totalRounds })}
             </p>
             <button className="ui-btn ui-surface-inverse ml-5" onClick={resetGame}>
-              Restart
+              {t("Restart")}
             </button>
           </>
         ) : (
-          "Click only when green appears."
+          t("Click only when green appears.")
         )}
       </div>
 
@@ -190,7 +206,7 @@ export default function ReactionGame() {
         className="w-full h-40 flex flex-grow items-center justify-center"
         onMouseDown={evaluateRound}
       >
-        {game.message}
+        {t(game.message, { score: game.times.at(-1) })}
       </div>
     </Card>
   );

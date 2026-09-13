@@ -27,6 +27,10 @@ function scorePayload(record) {
     missclicks: record.missclicks,
   };
 
+  // Keep the game-time classification through retries/reloads. Do not redetect here.
+  // Old outbox entries omit the field and retain the API's computer default.
+  if (record.deviceType !== undefined) payload.deviceType = record.deviceType;
+
   if (record.displayName) {
     payload.displayName = record.displayName;
   }

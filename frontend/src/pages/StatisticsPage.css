@@ -199,3 +199,16 @@
     margin-right: 0;
   }
 }
+
+@media (max-width: 540px) {
+  .statistics-results-header {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .statistics-results-header h2 {
+    grid-column: auto;
+  }
+  .statistics-results-header button {
+    justify-self: center;
+  }
+}

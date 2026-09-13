@@ -40,6 +40,7 @@ type CreateInput struct {
 	Times        []int
 	Missclicks   int
 	DisplayName  *string
+	DeviceType   string
 }
 
 // CreateParams contains validated and derived values ready for persistence.
@@ -51,4 +52,5 @@ type CreateParams struct {
 	Missclicks   int
 	AverageMs    int
 	DisplayName  *string
+	DeviceType   string
 }

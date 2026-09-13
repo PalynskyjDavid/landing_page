@@ -6,6 +6,7 @@ Play at `/game`, then follow **View statistics and leaderboard**. The navigation
 also opens `/statistics`; the old `/dev/analytics` URL redirects there.
 
 Choose individual games or player groups. Filters include everyone/my scores,
+all devices/computer/mobile,
 last 7/30 days/all time/custom dates, literal player-name text, average/best
 reaction ranges, misclick ranges, and minimum matching games per player.
 Two sort columns and Top 5/10/20 remain available. Press **Apply filters** to send
@@ -49,7 +50,10 @@ The existing `GET /scores/leaderboard` remains compatible with older callers.
 Migration 007 adds a stored, generated `best_ms` column and indexes for best-score
 ordering and saved dates. PostgreSQL derives best_ms from the five samples;
 neither the client nor Go supplies a second value that could drift.
-Existing average-score and player/date indexes are retained.
+Existing average-score and player/date indexes are retained. Migration 009 adds
+`device_type` and a `(device_type, created_at)` index for combined device/time
+filters. Grouped rows use `mixed` only when both device types are represented;
+filtering happens before averaging. See [device classification](device-types.md).
 
 Only a fixed allowlist supplies SQL sort fragments. Names, dates and numeric
 values remain bound parameters. Queries are limited by a three-second context.

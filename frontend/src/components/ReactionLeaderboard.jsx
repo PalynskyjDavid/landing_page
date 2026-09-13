@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n/useI18n.js";
 import { useState } from "react";
 import { useStatsQuery } from "../hooks/useStatsQuery.js";
 import { defaultStatisticsFilters, statisticsParams } from "../lib/statisticsFilters.js";
@@ -17,6 +18,7 @@ const ranges = [
 ];
 
 export default function ReactionLeaderboard() {
+  const { t, n, date, errorText } = useI18n();
   const [draft, setDraft] = useState(defaultStatisticsFilters);
   const [applied, setApplied] = useState(defaultStatisticsFilters);
   const stats = useStatsQuery(statisticsParams(applied));
@@ -45,54 +47,62 @@ export default function ReactionLeaderboard() {
   };
 
   return (
-    <section aria-label="Score statistics">
+    <section aria-label={t("Score statistics")}>
       <form className="statistics-filters" onSubmit={apply}>
         <div className="statistics-filter-grid">
           <label>
-            View
+            {t("View")}
             <select value={draft.group} onChange={(e) => change("group", e.target.value)}>
-              <option value="games">Individual games</option>
-              <option value="players">Grouped by player</option>
+              <option value="games">{t("Individual games")}</option>
+              <option value="players">{t("Grouped by player")}</option>
             </select>
           </label>
           <label>
-            Players
+            {t("Players")}
             <select value={draft.scope} onChange={(e) => change("scope", e.target.value)}>
-              <option value="everyone">Everyone</option>
-              <option value="mine">My scores</option>
+              <option value="everyone">{t("Everyone")}</option>
+              <option value="mine">{t("My scores")}</option>
             </select>
           </label>
           <label>
-            Period
+            {t("Device type")}
+            <select value={draft.deviceType} onChange={(e) => change("deviceType", e.target.value)}>
+              <option value="">{t("All devices")}</option>
+              <option value="computer">{t("Computer")}</option>
+              <option value="mobile">{t("Mobile")}</option>
+            </select>
+          </label>
+          <label>
+            {t("Period")}
             <select value={draft.period} onChange={(e) => change("period", e.target.value)}>
-              <option value="all">All time</option>
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="custom">Custom dates (UTC)</option>
+              <option value="all">{t("All time")}</option>
+              <option value="7d">{t("Last 7 days")}</option>
+              <option value="30d">{t("Last 30 days")}</option>
+              <option value="custom">{t("Custom dates (UTC)")}</option>
             </select>
           </label>
           <label>
-            Show
+            {t("Show")}
             <select value={draft.limit} onChange={(e) => change("limit", e.target.value)}>
               {[5, 10, 20].map((limit) => (
                 <option key={limit} value={limit}>
-                  Top {limit}
+                  {t("Top {{count}}", { count: limit })}
                 </option>
               ))}
             </select>
           </label>
           <label>
-            Player name
+            {t("Player name")}
             <input
               maxLength={24}
               value={draft.player}
               onChange={(e) => change("player", e.target.value)}
-              placeholder="Contains…"
+              placeholder={t("Contains…")}
             />
           </label>
           {draft.group === "players" && (
             <label>
-              Minimum games per player
+              {t("Minimum games per player")}
               <input
                 type="number"
                 min="1"
@@ -105,7 +115,7 @@ export default function ReactionLeaderboard() {
           {draft.period === "custom" && (
             <>
               <label>
-                From date (UTC)
+                {t("From date (UTC)")}
                 <input
                   type="date"
                   value={draft.from}
@@ -113,7 +123,7 @@ export default function ReactionLeaderboard() {
                 />
               </label>
               <label>
-                Through date (UTC)
+                {t("Through date (UTC)")}
                 <input
                   type="date"
                   value={draft.to}
@@ -126,43 +136,43 @@ export default function ReactionLeaderboard() {
         <div className="statistics-sort-grid">
           {["primary", "secondary"].map((level, index) => (
             <fieldset key={level}>
-              <legend>Sort {index + 1}</legend>
+              <legend>{t("Sort {{level}}", { level: index + 1 })}</legend>
               <label>
-                Column
+                {t("Column")}
                 <select value={draft[level]} onChange={(e) => change(level, e.target.value)}>
                   {columns.map(([value, label]) => (
                     <option key={value} value={value}>
-                      {label}
+                      {t(label)}
                     </option>
                   ))}
                 </select>
               </label>
               <label>
-                Order
+                {t("Order")}
                 <select
                   value={draft[`${level}Direction`]}
                   onChange={(e) => change(`${level}Direction`, e.target.value)}
                 >
-                  <option value="best">Lowest / oldest first</option>
-                  <option value="worst">Highest / newest first</option>
+                  <option value="best">{t("Lowest / oldest first")}</option>
+                  <option value="worst">{t("Highest / newest first")}</option>
                 </select>
               </label>
             </fieldset>
           ))}
         </div>
         <details>
-          <summary>Reaction time and misclick ranges</summary>
+          <summary>{t("Reaction time and misclick ranges")}</summary>
           <p className="statistics-note">
-            Ranges filter individual games before player averages are calculated.
+            {t("Ranges filter individual games before player averages are calculated.")}
           </p>
           <div className="statistics-filter-grid">
             {ranges.map(([label, minimum, maximum]) => (
               <fieldset key={minimum}>
-                <legend>{label}</legend>
+                <legend>{t(label)}</legend>
                 <label>
-                  Minimum
+                  {t("Minimum")}
                   <input
-                    aria-label={`Minimum ${label}`}
+                    aria-label={t("Minimum {{label}}", { label: t(label) })}
                     type="number"
                     min="0"
                     max="2147483647"
@@ -171,9 +181,9 @@ export default function ReactionLeaderboard() {
                   />
                 </label>
                 <label>
-                  Maximum
+                  {t("Maximum")}
                   <input
-                    aria-label={`Maximum ${label}`}
+                    aria-label={t("Maximum {{label}}", { label: t(label) })}
                     type="number"
                     min="0"
                     max="2147483647"
@@ -187,7 +197,7 @@ export default function ReactionLeaderboard() {
         </details>
         <div className="statistics-actions">
           <button className="ui-btn ui-surface-inverse" type="submit">
-            Apply filters
+            {t("Apply filters")}
           </button>
           <button
             className="ui-btn"
@@ -197,100 +207,116 @@ export default function ReactionLeaderboard() {
               setApplied(defaultStatisticsFilters);
             }}
           >
-            Reset filters
+            {t("Reset filters")}
           </button>
-          <span className="statistics-note">Apply sends one request for the selected filters.</span>
+          <span className="statistics-note">
+            {t("Apply sends one request for the selected filters.")}
+          </span>
         </div>
       </form>
 
       <div className="statistics-results-header">
-        <h2>Leaderboard</h2>
+        <h2>{t("Leaderboard")}</h2>
         <button
-          className="ui-btn"
+          className="ui-btn statistics-refresh"
           type="button"
-          aria-label="Refresh leaderboard"
+          aria-label={t("Refresh leaderboard")}
           disabled={stats.isFetching}
           onClick={() => stats.refetch()}
         >
-          <span aria-hidden="true">↻</span> {stats.isFetching ? "Refreshing…" : "Refresh"}
+          <span aria-hidden="true">↻</span> {stats.isFetching ? t("Refreshing…") : t("Refresh")}
         </button>
       </div>
       <p className="statistics-status" role="status">
         {stats.isPlaceholderData
-          ? "Previous selection — refreshing…"
+          ? t("Previous selection — refreshing…")
           : stale
-            ? "Stale data — refreshing…"
+            ? t("Stale data — refreshing…")
             : stats.isFetching
-              ? "Loading statistics…"
+              ? t("Loading statistics…")
               : ""}
       </p>
-      {stats.isError && <p role="alert">Could not load statistics: {stats.error.message}</p>}
+      {stats.isError && (
+        <p role="alert">
+          {t("Could not load statistics: {{message}}", { message: errorText(stats.error) })}
+        </p>
+      )}
       {stats.data && (
         <div aria-busy={stale} className={stale ? "statistics-stale" : ""}>
-          <dl className="statistics-summary" aria-label="Filtered summary">
+          <dl className="statistics-summary" aria-label={t("Filtered summary")}>
             {[
-              ["Matching games", summary.games],
-              ["Players", summary.players],
-              ["Average game", summary.averageMs === null ? "—" : `${summary.averageMs} ms`],
+              [t("Matching games"), summary.games],
+              [t("Players"), summary.players],
+              [t("Average game"), summary.averageMs === null ? "—" : `${n(summary.averageMs)} ms`],
               [
-                "Best game average",
-                summary.bestAverageMs === null ? "—" : `${summary.bestAverageMs} ms`,
+                t("Best game average"),
+                summary.bestAverageMs === null ? "—" : `${n(summary.bestAverageMs)} ms`,
               ],
             ].map(([label, value]) => (
               <div key={label}>
                 <dt>{label}</dt>
-                <dd>{value}</dd>
+                <dd>{typeof value === "number" ? n(value) : value}</dd>
               </div>
             ))}
           </dl>
           <p className="statistics-note">
-            Summary covers all matching games, not just the displayed Top {displayed.limit}.{" "}
+            {t("Summary covers all matching games, not just the displayed Top {{count}}.", {
+              count: displayed.limit,
+            })}{" "}
             {grouped
-              ? "Each row is one player; misclicks are averaged per game."
-              : "Each row is one five-round game."}
+              ? t("Each row is one player; misclicks are averaged per game.")
+              : t("Each row is one five-round game.")}
           </p>
           {entries.length === 0 ? (
-            <p>No scores match these filters. Play a game or widen the filters.</p>
+            <p>{t("No scores match these filters. Play a game or widen the filters.")}</p>
           ) : (
             <>
               {grouped && <PlayerAveragesChart entries={entries} />}
               <div className="statistics-table-scroll">
                 <table>
                   <caption>
-                    {grouped ? "Players ranked using their matching games" : "Matching games"} — Top{" "}
-                    {displayed.limit}
+                    {grouped ? t("Players ranked using their matching games") : t("Matching games")}{" "}
+                    — {t("Top {{count}}", { count: displayed.limit })}
                   </caption>
                   <thead>
                     <tr>
-                      <th scope="col">Rank</th>
-                      <th scope="col">Player</th>
-                      <th scope="col">{heading("averageMs", "Average")}</th>
-                      <th scope="col">{heading("bestMs", "Best")}</th>
+                      <th scope="col">{t("Rank")}</th>
+                      <th scope="col">{t("Player")}</th>
+                      <th scope="col">{t("Device type")}</th>
+                      <th scope="col">{heading("averageMs", t("Average"))}</th>
+                      <th scope="col">{heading("bestMs", t("Best"))}</th>
                       <th scope="col">
-                        {heading("missclicks", grouped ? "Misclicks/game" : "Misclicks")}
+                        {heading("missclicks", grouped ? t("Misclicks/game") : t("Misclicks"))}
                       </th>
-                      {grouped && <th scope="col">{heading("games", "Games")}</th>}
+                      {grouped && <th scope="col">{heading("games", t("Games"))}</th>}
                       <th scope="col">
-                        {heading("createdAt", grouped ? "Latest game" : "Saved at")} (UTC)
+                        {heading("createdAt", grouped ? t("Latest game") : t("Saved at"))} (UTC)
                       </th>
                     </tr>
                   </thead>
                   <tbody>
                     {entries.map((entry) => (
                       <tr key={entry.scoreId}>
-                        <td>{entry.rank}</td>
+                        <td>{n(entry.rank)}</td>
                         <td>
                           {entry.displayName ||
-                            (grouped ? `Anonymous #${entry.scoreId}` : "Anonymous")}
+                            (grouped
+                              ? t("Anonymous #{{id}}", { id: String(entry.scoreId) })
+                              : t("Anonymous"))}
                         </td>
-                        <td>{entry.averageMs} ms</td>
-                        <td>{entry.bestMs} ms</td>
-                        <td>{Number(entry.missclicks.toFixed(2))}</td>
-                        {grouped && <td>{entry.games}</td>}
                         <td>
-                          <time dateTime={entry.createdAt}>
-                            {new Date(entry.createdAt).toISOString().slice(0, 16).replace("T", " ")}
-                          </time>
+                          {entry.deviceType === "mobile"
+                            ? t("Mobile")
+                            : entry.deviceType === "mixed"
+                              ? t("Mixed")
+                              : t("Computer")}
+                        </td>
+                        <td>{n(entry.averageMs)} ms</td>
+                        <td>{n(entry.bestMs)} ms</td>
+                        <td>{n(entry.missclicks)}</td>
+                        {grouped && <td>{n(entry.games)}</td>}
+                        <td>
+                          <time dateTime={entry.createdAt}>{date(entry.createdAt)}</time>
                         </td>
                       </tr>
                     ))}

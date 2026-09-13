@@ -101,6 +101,10 @@ func TestOpenAPIHTTPResponses(t *testing.T) {
 		{name: "readiness", target: "/health/ready", status: 200},
 		{name: "database unavailable", target: "/health/ready", status: 503, healthErr: errors.New("offline")},
 		{name: "anonymous score", target: "/scores", body: validBody, status: 201},
+		{name: "mobile score", target: "/scores", body: strings.TrimSuffix(validBody, "}") + `,"deviceType":"mobile"}`, status: 201},
+		{name: "empty device defaults", target: "/scores", body: strings.TrimSuffix(validBody, "}") + `,"deviceType":""}`, status: 201},
+		{name: "null device defaults", target: "/scores", body: strings.TrimSuffix(validBody, "}") + `,"deviceType":null}`, status: 201},
+		{name: "invalid device", target: "/scores", body: strings.TrimSuffix(validBody, "}") + `,"deviceType":"tablet"}`, status: 400, code: "score_invalid_device_type"},
 		{name: "cookie handshake", target: "/scores", body: validBody, status: 400, code: "score_player_cookie_required", noCookie: true},
 		{name: "trimmed name", target: "/scores", body: strings.Replace(validBody, `"missclicks":0`, `"missclicks":0,"displayName":"  David  "`, 1), status: 201},
 		{name: "optional missclicks", target: "/scores", body: strings.Replace(validBody, `,"missclicks":0`, "", 1), status: 201},
@@ -118,6 +122,8 @@ func TestOpenAPIHTTPResponses(t *testing.T) {
 		{name: "write unavailable", target: "/scores", body: validBody, status: 500, code: "internal_error", repo: fakeRepository{err: errors.New("offline")}},
 		{name: "empty leaderboard", target: "/scores/leaderboard", status: 200},
 		{name: "empty statistics", target: "/scores/statistics", status: 200},
+		{name: "mobile statistics", target: "/scores/statistics?deviceType=mobile", status: 200},
+		{name: "invalid device filter", target: "/scores/statistics?deviceType=mixed", status: 400, code: "score_invalid_filter"},
 		{name: "grouped statistics", target: "/scores/statistics?group=players&scope=mine&period=7d&minGames=2&maxAverageMs=500", status: 200},
 		{name: "invalid statistics filter", target: "/scores/statistics?minAverageMs=500&maxAverageMs=100", status: 400, code: "score_invalid_filter"},
 		{name: "statistics unavailable", target: "/scores/statistics", status: 500, code: "internal_error", repo: fakeRepository{leaderboardErr: errors.New("offline")}},
@@ -231,13 +237,15 @@ func TestOpenAPIDetectsResponseDrift(t *testing.T) {
 		name   string
 		mutate func(map[string]any)
 	}{
+		{"device omitted", func(body map[string]any) { delete(body, "deviceType") }},
+		{"invalid device", func(body map[string]any) { body["deviceType"] = "tablet" }},
 		{"ID changed to string", func(body map[string]any) { body["id"] = "1" }},
 		{"required timestamp removed", func(body map[string]any) { delete(body, "createdAt") }},
 		{"null instead of omitted name", func(body map[string]any) { body["displayName"] = nil }},
 	} {
 		t.Run(change.name, func(t *testing.T) {
 			body := map[string]any{
-				"id": float64(1), "submissionId": testSubmissionID, "totalRounds": float64(5),
+				"deviceType": "computer", "id": float64(1), "submissionId": testSubmissionID, "totalRounds": float64(5),
 				"averageMs": float64(241), "createdAt": "2026-09-08T00:00:00Z",
 			}
 			if err := schema.VisitJSON(body); err != nil {

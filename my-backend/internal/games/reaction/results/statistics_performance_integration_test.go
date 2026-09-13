@@ -30,11 +30,11 @@ func TestPostgresStatisticsWithLargeDataset(t *testing.T) {
 	// Bypass name triggers ONLY while generating consistent synthetic fixture data.
 	_, err := conn.Exec(t.Context(), `
         ALTER TABLE scores DISABLE TRIGGER USER;
-        INSERT INTO scores (submission_id,player_id,display_name,submitted_display_name,total_rounds,times,average_ms,missclicks,created_at)
+        INSERT INTO scores (submission_id,player_id,display_name,submitted_display_name,total_rounds,times,average_ms,missclicks,created_at,device_type)
         SELECT md5('game:'||i)::uuid, md5('player:'||(i%1000))::uuid,
                'Player '||(i%1000), 'Player '||(i%1000), 5,
                jsonb_build_array(100+i%900,100+i%900,100+i%900,100+i%900,100+i%900),
-               100+i%900,i%7,now()-(i%365)*interval '1 day'
+               100+i%900,i%7,now()-(i%365)*interval '1 day', CASE WHEN i%4=0 THEN 'mobile' ELSE 'computer' END
         FROM generate_series(1,100000) AS i;
         ALTER TABLE scores ENABLE TRIGGER USER;
         ANALYZE scores;
@@ -49,6 +49,7 @@ func TestPostgresStatisticsWithLargeDataset(t *testing.T) {
 		options StatisticsOptions
 	}{
 		{"all games", StatisticsOptions{}},
+		{"mobile recent players", StatisticsOptions{DeviceType: deviceMobile, Group: "players", Period: "7d"}},
 		{"all players", StatisticsOptions{Group: "players"}},
 		{"recent players", StatisticsOptions{Group: "players", Period: "7d"}},
 		{"combined filters", StatisticsOptions{Period: "30d", Player: "Player 1", MinAverageMs: statisticsInt(200), MaxBestMs: statisticsInt(800), MaxMissclicks: statisticsInt(2)}},

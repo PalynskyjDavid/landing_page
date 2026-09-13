@@ -88,7 +88,9 @@ test("system statistics buffer an outage, count edge errors and expose no reques
     fullPage: true,
   });
   await page.getByRole("combobox", { name: "API route", exact: true }).selectOption("<unmatched>");
-  await expect(page.getByText("Displayed: 1h · <unmatched>.", { exact: false })).toBeVisible();
+  await expect(
+    page.getByText("Displayed: Last hour · Unknown API paths.", { exact: false }),
+  ).toBeVisible();
   await page.setViewportSize({ width: 360, height: 800 });
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
