@@ -4,8 +4,10 @@ import wasmBinaryPath from "@mediapipe/tasks-vision/vision_wasm_module_internal.
 import modelAssetPath from "../../assets/hand-controller/hand_landmarker.task?url";
 
 let detector;
-// This module runs in its own thread. Only landmarks come back, never OS inputs.
+// This thread returns the original frame and its landmarks together for display.
+// Nothing leaves the browser and no OS inputs are generated.
 self.onmessage = async ({ data }) => {
+  let frame = data.frame;
   try {
     if (data.type === "init") {
       detector = await HandLandmarker.createFromOptions(
@@ -21,12 +23,13 @@ self.onmessage = async ({ data }) => {
       );
       self.postMessage({ type: "ready" });
     } else if (data.type === "frame" && detector) {
-      const { landmarks } = detector.detectForVideo(data.frame, data.timestamp);
-      self.postMessage({ type: "landmarks", landmarks });
+      const { landmarks } = detector.detectForVideo(frame, data.timestamp);
+      self.postMessage({ type: "landmarks", landmarks, frame }, [frame]);
+      frame = null; // Ownership transferred back; the UI closes it after drawing.
     }
   } catch {
     self.postMessage({ type: "error" });
   } finally {
-    data.frame?.close();
+    frame?.close();
   }
 };

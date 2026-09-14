@@ -17,7 +17,23 @@ function fixture(overrides = {}) {
       (key) => [key, vi.fn()],
     ),
   );
-  const canvas = { width: 640, height: 480, getContext: () => context };
+  let canvasWidth = 640,
+    canvasHeight = 480;
+  const canvas = {
+    get width() {
+      return canvasWidth;
+    },
+    set width(value) {
+      canvasWidth = value;
+    },
+    get height() {
+      return canvasHeight;
+    },
+    set height(value) {
+      canvasHeight = value;
+    },
+    getContext: () => context,
+  };
   const video = {
     play: vi.fn().mockResolvedValue(),
     pause: vi.fn(),
@@ -27,7 +43,7 @@ function fixture(overrides = {}) {
     videoHeight: 480,
   };
   const worker = { terminate: vi.fn(), postMessage: vi.fn() };
-  const frame = { close: vi.fn() };
+  const frame = { width: 640, height: 480, close: vi.fn() };
   const dependencies = {
     video,
     canvas,
@@ -127,23 +143,76 @@ describe("private hand camera session", () => {
     expect(f.frame.close).toHaveBeenCalledOnce();
     expect(f.worker.postMessage).toHaveBeenCalledTimes(1); // init only
   });
-  it("draws the result against the same frame, then permits the next frame", async () => {
+  it("keeps the complete preview visible until the next frame and landmarks are ready", async () => {
     const f = fixture();
+    const width = vi.spyOn(f.canvas, "width", "set");
+    const height = vi.spyOn(f.canvas, "height", "set");
     await f.start();
     f.worker.onmessage({ data: { type: "ready" } });
     const tick = f.raf.mock.calls[0][0];
     await tick(100);
-    expect(f.context.drawImage).toHaveBeenCalledWith(f.frame, 0, 0);
+    expect(f.context.drawImage).not.toHaveBeenCalled();
     expect(f.worker.postMessage).toHaveBeenLastCalledWith(
       expect.objectContaining({ type: "frame" }),
       [f.frame],
     );
-    f.worker.onmessage({ data: { type: "landmarks", landmarks: [] } });
-    expect(f.onHands).toHaveBeenCalledWith(0);
+    const landmarks = [Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.25 }))];
+    f.worker.onmessage({ data: { type: "landmarks", landmarks, frame: f.frame } });
+    expect(f.context.drawImage).toHaveBeenCalledWith(f.frame, 0, 0);
+    expect(f.context.arc).toHaveBeenCalledTimes(21);
+    expect(f.onHands).toHaveBeenLastCalledWith(1);
+    expect(f.frame.close).toHaveBeenCalledOnce();
+    // A slow result must not create a camera-only frame between skeletons.
     f.video.currentTime = 2;
     await tick(200);
+    f.video.currentTime = 3;
+    await tick(400);
     expect(f.bitmap).toHaveBeenCalledTimes(2);
+    expect(f.context.drawImage).toHaveBeenCalledOnce();
+    expect(f.context.clearRect).not.toHaveBeenCalled();
+    expect(width).not.toHaveBeenCalled();
+    expect(height).not.toHaveBeenCalled();
+    // An actual no-hands result replaces the preview, without ghost landmarks.
+    const next = { width: 640, height: 360, close: vi.fn() };
+    f.worker.onmessage({ data: { type: "landmarks", landmarks: [], frame: next } });
+    expect(f.context.drawImage).toHaveBeenLastCalledWith(next, 0, 0);
+    expect(f.onHands).toHaveBeenLastCalledWith(0);
+    expect(f.context.arc).toHaveBeenCalledTimes(21);
+    expect(height).toHaveBeenCalledExactlyOnceWith(360);
+    expect(width).not.toHaveBeenCalled();
+    expect(next.close).toHaveBeenCalledOnce();
     f.stop();
+  });
+  it("closes a returned worker bitmap after cancellation without repainting", async () => {
+    const f = fixture();
+    await f.start();
+    f.stop();
+    f.worker.onmessage({ data: { type: "landmarks", landmarks: [], frame: f.frame } });
+    expect(f.frame.close).toHaveBeenCalledOnce();
+    expect(f.context.drawImage).not.toHaveBeenCalled();
+    expect(f.onHands).not.toHaveBeenCalled();
+  });
+  it("releases the returned bitmap and camera if rendering fails", async () => {
+    const f = fixture();
+    await f.start();
+    f.context.drawImage.mockImplementation(() => {
+      throw new Error("Canvas lost");
+    });
+    f.worker.onmessage({ data: { type: "landmarks", landmarks: [], frame: f.frame } });
+    expect(f.frame.close).toHaveBeenCalledOnce();
+    expect(f.track.stop).toHaveBeenCalledOnce();
+    expect(f.onStatus).toHaveBeenLastCalledWith("model");
+  });
+  it("stops and clears the last preview if inference never returns", async () => {
+    vi.useFakeTimers();
+    const f = fixture();
+    await f.start();
+    f.worker.onmessage({ data: { type: "ready" } });
+    await f.raf.mock.calls[0][0](100);
+    vi.advanceTimersByTime(10000);
+    expect(f.worker.terminate).toHaveBeenCalledOnce();
+    expect(f.context.clearRect).toHaveBeenCalledOnce();
+    expect(f.onStatus).toHaveBeenLastCalledWith("model");
   });
   it("draws 21 landmarks and 21 connections per hand", () => {
     const f = fixture();

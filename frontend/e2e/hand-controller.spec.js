@@ -1,6 +1,7 @@
 import { test } from "./fixtures.js";
 import {
   handControllerNavigation,
+  handControllerStablePreview,
   handControllerDemo,
   handControllerLive,
   handControllerLoadingCancel,
@@ -16,3 +17,8 @@ test("Hand Controller model failure releases the camera", async (args) => {
   test.setTimeout(90000);
   await handControllerLoadingCancel(args);
 });
+
+test(
+  "Hand Controller skeleton stays visible while inference is pending",
+  handControllerStablePreview,
+);

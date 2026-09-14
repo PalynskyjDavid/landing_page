@@ -84,6 +84,11 @@ export async function publicCv({ page }) {
     await page.setViewportSize({ width, height: 900 });
     for (const language of ["English", "Čeština"]) {
       await selectLanguage(page, language);
+      await expect(page.locator(".cv-projects h3 a")).toHaveText(
+        language === "English"
+          ? ["Flowento smart mirror", "Reaction game and statistics", "Hand Controller"]
+          : ["Chytré zrcadlo Flowento", "Reakční hra a statistiky", "Hand Controller"],
+      );
       await page.locator(".theme-toggle").click();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,

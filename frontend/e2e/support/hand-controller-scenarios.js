@@ -173,9 +173,13 @@ export async function handControllerLive({ page }) {
     page.getByText("Camera is on. Hold one or both hands in view.", { exact: true }),
   ).toBeVisible({ timeout: 60000 });
   await page.getByRole("link", { name: /Back to home/ }).click();
-  expect(
-    await page.evaluate(() => window.__cameraTracks.every((track) => track.readyState === "ended")),
-  ).toBe(true);
+  await expect(page).toHaveURL(/\/$/);
+  // Client-side navigation schedules React's unmount cleanup after the click.
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__cameraTracks.every((track) => track.readyState === "ended")),
+    )
+    .toBe(true);
   expect(errors).toEqual([]);
 }
 
@@ -205,4 +209,82 @@ export async function handControllerLoadingCancel({ page }) {
   });
   expect(await page.evaluate(() => window.__stopped)).toBe(true);
   await expect(page.getByRole("button", { name: "Start camera", exact: true })).toBeEnabled();
+}
+
+// Slow, deterministic inference makes the image-only flicker reproducible.
+// This uses real transferable bitmaps but never opens a physical camera.
+export async function handControllerStablePreview({ page }) {
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = async () => {
+      const source = document.createElement("canvas");
+      source.width = 640;
+      source.height = 480;
+      const context = source.getContext("2d");
+      let frame = 0;
+      const paint = setInterval(() => {
+        context.fillStyle = "rgb(" + (32 + (frame++ % 128)) + ", 34, 59)";
+        context.fillRect(0, 0, 640, 480);
+      }, 33);
+      const stream = source.captureStream(30);
+      const track = stream.getVideoTracks()[0];
+      const stop = track.stop.bind(track);
+      track.stop = () => {
+        clearInterval(paint);
+        stop();
+      };
+      return stream;
+    };
+  });
+  await page.route(/handLandmarker\.worker.*\.js/, (route) =>
+    route.fulfill({
+      contentType: "text/javascript",
+      body: `self.onmessage = ({ data }) => {
+      if (data.type === "init") self.postMessage({ type: "ready" });
+      else if (data.type === "frame") setTimeout(() => {
+        const points = [[.5,.8],[.38,.69],[.30,.60],[.24,.50],[.20,.40],
+          [.39,.51],[.37,.36],[.35,.25],[.34,.15],
+          [.50,.47],[.50,.30],[.50,.18],[.50,.08],
+          [.60,.50],[.63,.35],[.65,.24],[.66,.15],
+          [.68,.57],[.74,.47],[.78,.38],[.81,.30]];
+        self.postMessage({ type: "landmarks", frame: data.frame,
+          landmarks: [points.map(([x,y]) => ({x,y}))] }, [data.frame]);
+      }, 150);
+    };`,
+    }),
+  );
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/projects/hand-controller");
+  await page.getByRole("button", { name: "Start camera", exact: true }).click();
+  await expect
+    .poll(() =>
+      page
+        .locator(".hand-camera-canvas")
+        .evaluate((canvas) =>
+          Array.from(canvas.getContext("2d").getImageData(320, 384, 1, 1).data),
+        ),
+    )
+    .toEqual([255, 204, 125, 255]);
+  const samples = await page.locator(".hand-camera-canvas").evaluate(
+    (canvas) =>
+      new Promise((resolve) => {
+        const context = canvas.getContext("2d");
+        const backgrounds = new Set();
+        let missing = 0,
+          count = 0;
+        function sample() {
+          const [r, g, b] = context.getImageData(320, 384, 1, 1).data;
+          if (r !== 255 || g !== 204 || b !== 125) missing++;
+          backgrounds.add(context.getImageData(0, 0, 1, 1).data[0]);
+          if (++count === 120) resolve({ missing, backgrounds: backgrounds.size });
+          else requestAnimationFrame(sample);
+        }
+        requestAnimationFrame(sample);
+      }),
+  );
+  // Also prove the preview advances: a frozen canvas would hide the bug.
+  expect(samples.backgrounds).toBeGreaterThan(2);
+  expect(samples.missing).toBe(0);
+  await page.getByRole("button", { name: "Stop camera", exact: true }).click();
+  expect(errors).toEqual([]);
 }

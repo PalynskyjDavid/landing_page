@@ -56,6 +56,13 @@ Language switches keep the active session and do not request the camera again.
 - Inference runs off the UI thread on the CPU, with one bitmap in flight and an
   upper limit of 15 frames/second. This is a cap, not a guaranteed frame rate.
 - Frames are resized to 640 pixels wide; the preview preserves aspect ratio.
+- The worker transfers each bitmap back with its landmarks. The UI draws both in
+  one paint, keeping the previous complete preview visible during inference.
+  Canvas dimensions change only when the frame size changes. This avoids the
+  camera-only frames that previously made the skeleton flicker. Returned bitmaps
+  are closed after drawing, including late results after cancellation.
+- Skeleton lines have a dark outline for contrast on bright camera backgrounds.
+  No stale landmarks are carried onto a new frame when no hands are detected.
 - Runtime/model assets total about 20 MB raw / 9.43 MB at NGINX's gzip level 5.
   Content-hashed URLs use the existing immutable cache. Cache reuse depends on
   browser settings and eviction; this is not an offline guarantee.

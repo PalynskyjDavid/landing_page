@@ -71,9 +71,7 @@ export default function CvPage() {
           {cvProjects.map((project) => (
             <article key={project.title}>
               <h3>
-                <Link to={project.route}>
-                  {t(project.title)} <span aria-hidden="true">↗</span>
-                </Link>
+                <Link to={project.route}>{t(project.title)}</Link>
               </h3>
               <p className="profile-note">{t(project.context)}</p>
               <ul className="cv-tags">

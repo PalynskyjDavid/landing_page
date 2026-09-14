@@ -45,13 +45,19 @@ export const handConnections = [
 
 export function drawLandmarks(context, hands, width, height) {
   for (const [index, points] of hands.entries()) {
-    context.strokeStyle = index === 0 ? "#b5efb9" : "#cbb8ff";
-    context.lineWidth = 3;
+    context.lineCap = "round";
+    context.lineJoin = "round";
     context.beginPath();
     for (const [from, to] of handConnections) {
       context.moveTo(points[from].x * width, points[from].y * height);
       context.lineTo(points[to].x * width, points[to].y * height);
     }
+    // A dark underlay keeps the colored bones legible against bright video.
+    context.strokeStyle = "#18223b";
+    context.lineWidth = 7;
+    context.stroke();
+    context.strokeStyle = index === 0 ? "#b5efb9" : "#cbb8ff";
+    context.lineWidth = 4;
     context.stroke();
     for (const point of points) {
       context.beginPath();
@@ -59,7 +65,7 @@ export function drawLandmarks(context, hands, width, height) {
       context.fillStyle = "#ffcc7d";
       context.fill();
       context.strokeStyle = "#18223b";
-      context.lineWidth = 1;
+      context.lineWidth = 2;
       context.stroke();
     }
   }
@@ -134,12 +140,9 @@ export function createCameraSession({
         frame.close();
         return;
       }
-      canvas.width = 640;
-      canvas.height = height;
-      context.drawImage(frame, 0, 0);
       watch(10000);
       worker.postMessage({ type: "frame", frame, timestamp }, [frame]);
-      frame = null; // Ownership transferred to the worker, which closes it.
+      frame = null; // The worker returns this bitmap together with its landmarks.
     } catch {
       frame?.close();
       fail("model");
@@ -178,7 +181,10 @@ export function createCameraSession({
       worker.onerror = () => fail("model");
       worker.onmessageerror = () => fail("model");
       worker.onmessage = ({ data }) => {
-        if (disposed) return;
+        if (disposed) {
+          data.frame?.close();
+          return;
+        }
         if (data.type === "error") {
           fail("model");
           return;
@@ -189,9 +195,21 @@ export function createCameraSession({
           animation = raf(tick);
         } else if (data.type === "landmarks") {
           clearTimeout(timer);
-          drawLandmarks(context, data.landmarks, canvas.width, canvas.height);
-          onHands(data.landmarks.length);
-          inFlight = false;
+          try {
+            // Present the matching image and skeleton in one browser paint. Keep
+            // the previous complete preview visible while inference is running.
+            // Assigning canvas dimensions clears it, even if they did not change.
+            if (canvas.width !== data.frame.width) canvas.width = data.frame.width;
+            if (canvas.height !== data.frame.height) canvas.height = data.frame.height;
+            context.drawImage(data.frame, 0, 0);
+            drawLandmarks(context, data.landmarks, canvas.width, canvas.height);
+            onHands(data.landmarks.length);
+            inFlight = false;
+          } catch {
+            fail("model");
+          } finally {
+            data.frame?.close();
+          }
         }
       };
       worker.postMessage({ type: "init" });
