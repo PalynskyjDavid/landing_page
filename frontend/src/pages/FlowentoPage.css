@@ -114,7 +114,7 @@
   place-items: center;
   width: 2.6rem;
   height: 2.6rem;
-  border: 1px solid rgb(var(--border) / 0.16);
+  border: var(--border-width) solid rgb(var(--border) / 0.16);
   border-radius: 9px;
   margin-bottom: 1.2rem;
   color: var(--flowento-accent);
@@ -134,7 +134,7 @@
   gap: 2rem;
   padding: 1.75rem;
   background: rgb(var(--fg) / 0.035);
-  border: 1px solid rgb(var(--border) / 0.12);
+  border: var(--border-width) solid rgb(var(--border) / 0.12);
   border-radius: 12px;
 }
 .flowento-tech-label {
@@ -155,7 +155,7 @@
 }
 .flowento-tech-context {
   display: inline-block;
-  border: 1px solid rgb(var(--border) / 0.25);
+  border: var(--border-width) solid rgb(var(--border) / 0.25);
   border-radius: 5px;
   padding: 0.2rem 0.4rem;
   font-size: 0.68rem;
@@ -195,7 +195,7 @@
   border-radius: 22px;
   background: #e6ede8;
   color: #1c3529;
-  border: 1px solid #bfd0c5;
+  border: var(--border-width) solid #bfd0c5;
 }
 .mirror-viewer-heading {
   padding: 1.2rem 1.4rem 0;
@@ -246,7 +246,7 @@
   cursor: pointer;
   background: #1d382d;
   color: white;
-  border: 1px solid #1d382d;
+  border: var(--border-width) solid #1d382d;
   border-radius: 8px;
   padding: 0.8rem 1.1rem;
   font-size: 0.9rem;
@@ -271,7 +271,7 @@
   cursor: pointer;
   min-height: 2.75rem;
   padding: 0.4rem 0.65rem;
-  border: 1px solid #94ad9e;
+  border: var(--border-width) solid #94ad9e;
   border-radius: 6px;
   font-size: 0.75rem;
 }
@@ -363,7 +363,7 @@
 }
 .mirror-components button {
   cursor: pointer;
-  border: 1px solid #a5bcae;
+  border: var(--border-width) solid #a5bcae;
   border-radius: 6px;
   padding: 0.4rem 0.6rem;
   min-height: 2.75rem;

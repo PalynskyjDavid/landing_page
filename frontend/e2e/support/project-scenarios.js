@@ -1,3 +1,4 @@
+import { selectLanguage } from "./language.js";
 import { expect } from "@playwright/test";
 
 export async function projectNavigation({ page }) {
@@ -56,9 +57,9 @@ export async function projectNavigation({ page }) {
   ).toBeVisible();
   for (const width of [320, 375, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    await page.getByRole("button", { name: "Čeština", exact: true }).click();
+    await selectLanguage(page, "Čeština");
     await expect(
-      page.getByRole("heading", { name: "Technologie / Můj přínos", exact: true }),
+      page.getByRole("heading", { name: "Technologie a moje práce", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("link", {
@@ -69,7 +70,7 @@ export async function projectNavigation({ page }) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    await page.getByRole("button", { name: "English", exact: true }).click();
+    await selectLanguage(page, "English");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
@@ -93,9 +94,9 @@ export async function projectInteraction({ page }) {
   await page.getByRole("button", { name: "Reset view", exact: true }).click();
   await page.getByRole("button", { name: "Zoom in", exact: true }).click();
   expect((await canvas.screenshot()).equals(angled)).toBe(false);
-  await page.getByRole("button", { name: "Čeština", exact: true }).click();
+  await selectLanguage(page, "Čeština");
   await expect(page.getByRole("button", { name: "Zepředu", exact: true })).toBeEnabled();
-  await page.getByRole("button", { name: "English", exact: true }).click();
+  await selectLanguage(page, "English");
   expect(modelRequests).toHaveLength(1); // Translating the UI must not recreate WebGL.
   await expect(page.getByRole("button", { name: "Original model", exact: true })).toHaveCount(0);
   expect(modelRequests).toHaveLength(1);
@@ -204,7 +205,7 @@ export async function projectAssembly({ page }) {
   await expect(page.locator(".mirror-part-description")).toHaveText(
     "The rear enclosure and its attachment pieces. The access door is a separate component.",
   );
-  await page.getByRole("button", { name: "Čeština", exact: true }).click();
+  await selectLanguage(page, "Čeština");
   await expect(page.getByRole("button", { name: "Zadní pouzdro", exact: true })).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -212,14 +213,14 @@ export async function projectAssembly({ page }) {
   await page.setViewportSize({ width: 320, height: 900 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole("button", { name: "Zobrazit všechny díly", exact: true }).click();
-  const slider = page.getByRole("slider", { name: "Rozestup dílů" });
+  const slider = page.getByRole("slider", { name: "Rozložení dílů" });
   await expect(slider).toHaveValue("100");
   await slider.focus();
   await slider.press("Home");
   await expect(slider).toHaveValue("0");
-  await expect(page.getByRole("button", { name: "Rozložený pohled", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Rozložit zrcadlo", exact: true })).toBeVisible();
   expect(requests).toHaveLength(1);
-  await page.getByRole("button", { name: "English", exact: true }).click();
+  await selectLanguage(page, "English");
   await page.getByRole("button", { name: "Close 3D", exact: true }).click();
   await expect(page.locator(".mirror-parts li")).toHaveCount(7);
   await expect(page.getByRole("button", { name: "Rear housing", exact: true })).toHaveAttribute(
@@ -295,8 +296,8 @@ export async function projectLazyLoading({ page }) {
   await poster.scrollIntoViewIfNeeded();
   await expect.poll(() => poster.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
   await page.locator("#contribution").scrollIntoViewIfNeeded();
-  await page.getByRole("button", { name: "Čeština", exact: true }).click();
-  await page.getByRole("button", { name: "English", exact: true }).click();
+  await selectLanguage(page, "Čeština");
+  await selectLanguage(page, "English");
   expect(requests.filter((path) => isRenderer(path) || isModel(path))).toEqual([]);
   await expect(page.locator(".mirror-canvas canvas")).toHaveCount(0);
 

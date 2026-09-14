@@ -252,3 +252,12 @@ test("SPA fallback ignores directories left by moved public assets", () => {
   assert.match(config, /location \/ \{ try_files \$uri \/index\.html; \}/);
   assert(!config.includes("try_files $uri $uri/"));
 });
+
+test("the hand demo permits local WASM and camera, not remote scripts or microphones", () => {
+  const config = read("frontend/nginx.conf");
+  assert(config.includes("script-src 'self' 'wasm-unsafe-eval'; worker-src 'self';"));
+  assert(!config.includes("'unsafe-eval'"));
+  assert(config.includes("connect-src 'self'"));
+  assert(config.includes('Permissions-Policy "camera=(self), microphone=(), geolocation=()"'));
+  assert(config.includes("application/wasm"));
+});

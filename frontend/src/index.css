@@ -70,6 +70,8 @@ Layer,              Purpose,                    Example
 
     --ring: 0 0 0;
     --radius: 14px;
+    /* Two CSS pixels keep control and panel edges legible on small screens. */
+    --border-width: 2px;
 
     --fs-h1: 2.25rem;
     --fs-body: 1rem;
@@ -146,7 +148,7 @@ Layer,              Purpose,                    Example
 -------------------------------------------------- */
 @layer components {
   .shell-div {
-    height: 100dvh;
+    min-height: 100dvh;
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -154,34 +156,12 @@ Layer,              Purpose,                    Example
     color: rgb(var(--fg));
   }
 
-  .shell-header {
-    position: sticky;
-    top: 0px;
-    z-index: 50;
-    margin-top: 5px;
-
-    display: flex;
-    flex-direction: row;
-  }
-
-  .shell-header:first-child {
-    margin-left: 5px;
-  }
-
-  .shell-header nav {
-    margin-left: auto;
-    margin-right: 5px;
-  }
-
-  .shell-nav {
-  }
-
   .ui-btn {
     position: relative;
     overflow: hidden;
-    border: 1px solid rgb(var(--border));
+    border: var(--border-width) solid rgb(var(--border));
     border-radius: var(--radius);
-    padding: 0.5rem 1rem;
+    padding: calc(0.5rem - 1px) calc(1rem - 1px);
     background: transparent;
     color: rgb(var(--fg));
     transition: color 200ms ease;
@@ -189,7 +169,7 @@ Layer,              Purpose,                    Example
 
   .ui-btn:hover {
     color: rgb(var(--muted-fg));
-    border: 1px solid rgb(var(--muted-fg));
+    border-color: rgb(var(--muted-fg));
   }
 
   .ui-surface-inverse {
@@ -201,79 +181,6 @@ Layer,              Purpose,                    Example
   .ui-surface-inverse:hover {
     color: rgb(var(--bg));
     border-color: rgb(var(--fg));
-  }
-
-  .ladder-link {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-
-    padding: 8px 12px;
-
-    border: 0;
-    border-radius: var(--radius);
-
-    background: transparent;
-    color: rgb(var(--fg));
-    text-decoration: none;
-
-    transition:
-      transform 250ms ease,
-      background-color 250ms ease;
-    transform-origin: center;
-  }
-
-  .ladder-link:hover {
-    background: rgb(var(--fg) / 0.15);
-    border: 1px solid rgb(var(--fg) / 0.9);
-  }
-
-  /* tilt variants */
-  .ladder-tilt-right:hover {
-    transform: scaleX(1.08) scaleY(1.05) rotate(2deg);
-  }
-
-  .ladder-tilt-left:hover {
-    transform: scaleX(1.08) scaleY(1.05) rotate(-4deg);
-  }
-
-  /* active route state */
-  .ladder-link.is-active {
-    font-weight: 700;
-  }
-
-  /* text nudge on hover */
-  .ladder-link-text {
-    font-size: var(--fs-sm);
-    transition: transform 250ms ease;
-  }
-
-  .ladder-link:hover .ladder-link-text {
-    transform: translateX(4px);
-  }
-
-  /* underline animation (expands left->right) */
-  .ladder-link-underline {
-    position: absolute;
-    left: 10px;
-    right: 10px;
-    bottom: 6px;
-
-    height: 2px;
-    background: rgb(var(--fg));
-
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 250ms ease;
-  }
-
-  .ladder-link:hover .ladder-link-underline {
-    transform: scaleX(1);
-  }
-
-  /* Optional: show underline when active even without hover */
-  .ladder-link.is-active .ladder-link-underline {
-    transform: scaleX(1);
   }
 }
 
@@ -306,67 +213,279 @@ Layer,              Purpose,                    Example
 
 /* 5) State = .dark on html + data/aria states in markup */
 
-/* Locale controls wrap with navigation so longer Czech labels fit on phones. */
+/* Primary navigation stays prominent; preferences use compact, fixed-size controls. */
 .shell-header {
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  flex-shrink: 0;
   background: rgb(var(--bg));
+  border-bottom: 1px solid rgb(var(--border) / 0.14);
 }
-.shell-header nav {
+.shell-header-inner {
+  width: min(1200px, 100%);
+  margin-inline: auto;
+  padding: 0.85rem clamp(1rem, 3vw, 2rem);
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 .shell-controls {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
+}
+.theme-toggle,
+.language-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 2.75rem;
+  border: var(--border-width) solid rgb(var(--border) / 0.4);
+  border-radius: 12px;
+  background: rgb(var(--fg) / 0.035);
+  color: rgb(var(--fg));
+  cursor: pointer;
+}
+.language-trigger:hover,
+.language-trigger[aria-expanded="true"] {
+  border-color: rgb(var(--border) / 0.65);
+  background: rgb(var(--fg) / 0.08);
+}
+.theme-toggle {
+  --theme-glow-center: #f4eeff;
+  --theme-glow-edge: #d9c6ff;
+  --theme-glow-rgb: 145 106 226;
+  --theme-glow-icon: #59349c;
+  position: relative;
+  isolation: isolate;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  flex: 0 0 2.75rem;
+  transition: border-color 650ms ease;
+}
+.theme-toggle[data-theme="dark"] {
+  --theme-glow-center: #fff8e6;
+  --theme-glow-edge: #ffdc96;
+  --theme-glow-rgb: 255 215 143;
+  --theme-glow-icon: #885400;
+}
+/* A local bloom expands from the icon; it never changes the button's size. */
+.theme-toggle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--theme-glow-center), var(--theme-glow-edge));
+  box-shadow: 0 0 24px 6px rgb(var(--theme-glow-rgb) / 0.32);
+  opacity: 0;
+  transform: scale(0.35);
+  transition:
+    opacity 650ms ease,
+    transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.theme-toggle:focus-visible {
+  border-color: rgb(var(--theme-glow-rgb) / 0.8);
+}
+.theme-toggle:focus-visible::before {
+  opacity: 1;
+  transform: scale(1);
+}
+.theme-toggle:focus-visible :is(.theme-sun, .theme-moon) {
+  color: var(--theme-glow-icon);
+}
+/* Avoid a lingering hover effect after taps on touch screens. */
+@media (hover: hover) and (pointer: fine) {
+  .theme-toggle:hover {
+    border-color: rgb(var(--theme-glow-rgb) / 0.8);
+  }
+  .theme-toggle:hover::before {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .theme-toggle:hover :is(.theme-sun, .theme-moon) {
+    color: var(--theme-glow-icon);
+  }
+}
+.theme-toggle > svg {
+  position: relative;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  overflow: visible;
+}
+.theme-sun,
+.theme-moon {
+  transform-origin: 12px 12px;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
+    color 650ms ease;
+}
+.theme-sun {
+  color: #ffc96b;
+}
+.theme-moon {
+  color: #6342af;
+}
+.theme-toggle[data-theme="light"] .theme-sun,
+.theme-toggle[data-theme="dark"] .theme-moon {
+  opacity: 0;
+  transform: rotate(-35deg) scale(0.6);
 }
 .language-switcher {
-  display: inline-flex;
+  position: relative;
+}
+.language-trigger {
+  inline-size: 6.5rem;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.language-flag {
+  display: block;
+  flex: 0 0 auto;
+  width: 27px;
+  height: 18px;
+  border-radius: 3px;
+  outline: 1px solid rgb(var(--border) / 0.15);
+  overflow: hidden;
+}
+.language-chevron {
+  width: 14px;
+  height: 14px;
+}
+.language-trigger[aria-expanded="true"] .language-chevron {
+  transform: rotate(180deg);
+}
+.language-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  width: 12rem;
+  z-index: 1;
+  padding: calc(0.35rem - 1px);
+  border: var(--border-width) solid rgb(var(--border) / 0.4);
+  border-radius: 14px;
+  background: rgb(var(--bg));
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.2);
+}
+.language-option {
+  width: 100%;
+  min-height: 3rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem;
+  border-radius: 9px;
+  text-align: left;
+  color: rgb(var(--fg));
+  cursor: pointer;
+}
+.language-option:hover,
+.language-option:focus-visible,
+.language-option[aria-checked="true"] {
+  background: rgb(var(--fg) / 0.075);
+}
+.language-option > span {
+  flex: 1;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+.language-option small {
+  display: block;
+  font-size: 0.7rem;
+  color: rgb(var(--muted-fg));
+}
+.language-check {
+  width: 16px;
+  height: 16px;
+  opacity: 0;
+}
+.language-option[aria-checked="true"] .language-check {
+  opacity: 1;
+}
+.shell-nav {
+  display: flex;
+  align-items: center;
   gap: 0.25rem;
+  padding: calc(0.25rem - 1px);
+  border: var(--border-width) solid rgb(var(--border) / 0.3);
+  border-radius: 16px;
+  background: rgb(var(--fg) / 0.035);
 }
-.language-switcher .ui-btn {
-  padding: 0.5rem 0.65rem;
-  min-height: 44px;
+.shell-nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 7rem;
+  min-block-size: 2.75rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 11px;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.4;
+  color: rgb(var(--fg));
+  text-decoration: none;
+  transition: background-color 150ms ease;
 }
-.language-switcher [aria-pressed="true"] {
-  background: rgb(var(--fg));
-  color: rgb(var(--bg));
+.shell-nav-link:hover {
+  background: rgb(var(--fg) / 0.09);
 }
-@media (max-width: 540px) {
+.shell-nav-link.is-active {
+  color: #fff;
+  background: #6342af;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.12);
+}
+.dark .shell-nav-link.is-active {
+  background: #cbb8ff;
+  color: #23183b;
+}
+.shell-header :is(button, a):focus-visible {
+  outline: 2px solid rgb(var(--ring));
+  outline-offset: 3px;
+  box-shadow: none;
+}
+@media (max-width: 640px) {
   .shell-header {
     position: static;
   }
-  .shell-header nav {
-    margin: 0 auto;
-    justify-content: center;
+  .shell-header-inner {
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    padding-block: 0.65rem;
+  }
+  .shell-controls {
+    margin-left: auto;
+  }
+  .shell-nav {
     width: 100%;
+  }
+  .shell-nav-link {
+    flex: 1 1 0;
+    min-width: 0;
+    inline-size: auto;
+    padding-inline: 0.4rem;
+  }
+  .language-menu {
+    left: auto;
+    right: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle,
+  .theme-toggle::before,
+  .theme-sun,
+  .theme-moon,
+  .shell-nav-link {
+    transition: none;
   }
 }
 
-/* Reserve room for the longest EN/CZ label and changing button states. */
-.theme-toggle {
-  inline-size: 9.5rem;
-  min-block-size: 2.75rem;
-  flex: 0 0 9.5rem;
-}
-.language-switcher .ui-btn {
-  inline-size: 3rem;
-  flex: 0 0 3rem;
-}
-.shell-nav .ladder-link {
-  inline-size: 6rem;
-  min-block-size: 2.75rem;
-  flex: 0 0 6rem;
-  justify-content: center;
-  border: 1px solid transparent;
-}
-.shell-nav .ladder-link:hover {
-  border-color: rgb(var(--fg) / 0.9);
-}
 .statistics-refresh {
   inline-size: 10.5rem;
   max-inline-size: 100%;

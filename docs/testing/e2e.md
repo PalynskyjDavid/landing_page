@@ -1,9 +1,9 @@
 # Browser tests: setup, reset, run, inspect
 
-Latest focused verification: [Hand Controller, 2026-09-13](#hand-controller-focused-checks-2026-09-13).
+Latest focused verification: [Public CV and contacts, 2026-09-14](#public-cv-and-contacts-2026-09-14).
 Last full-stack verification: [26 scenarios before the Hand Controller addition](#flowento-localization-and-device-filters-2026-09-13).
 
-The 28 registered scenarios use real Chromium, production React assets served by NGINX,
+The 32 registered scenarios use real Chromium, production React assets served by NGINX,
 the containerized canonical Go backend, and PostgreSQL 16. Swagger alone uses
 a development Vite server. Score/leaderboard values come from the real API; the lost-response
 test deliberately discards selected real responses rather than inventing a save.
@@ -51,9 +51,9 @@ test deliberately discards selected real responses rather than inventing a save.
     part isolation/staged disassembly, animation cancellation, lazy loading,
     real gzip transfer size and browser HTTP-cache reuse.
 
-18. **Hand Controller (two scenarios):** lazy navigation/reload, EN/CZ mobile
-    layouts, keyboard-accessible illustrative action gating, contrast, preserved
-    language-switch state and no camera/model access.
+18. **Hand Controller (four scenarios):** opt-in camera access, denied-permission
+    recovery, real MediaPipe inference with synthetic video, no uploads, EN/CZ
+    responsive layouts, restart/route/tab cleanup and model-download failure.
 
 The idempotency and invalid-input tests call the real API using `page.request`;
 they do not exercise the frontend submission flow. The offline scenario uses
@@ -543,3 +543,38 @@ No database data, public deployment or source-control history changed.
 See [Hand Controller scope and evidence](../hand-controller-project.md). Run the
 registered cases with task test:e2e -- hand-controller.spec.js; the usual runner
 resets its test database, unlike the temporary frontend-only verification here.
+
+### MediaPipe camera replacement (2026-09-13)
+
+The four current Hand Controller cases replace the two illustration cases, making
+30 registered cases overall. They cover permission gating, local real-model
+inference with synthetic video, failure cleanup, tab/route cleanup and responsive
+EN/CZ navigation. Built assets with production security headers and the Vite
+development server passed these focused checks. The actual updated Docker image
+and full DB-backed run are pending because Docker Desktop could not start.
+No camera or database was used for the focused checks. See the updated
+[Hand Controller guide](../hand-controller-project.md) for scope and limitations.
+
+### Header controls (2026-09-14)
+
+The added header.spec.js case brings the registered suite to 31 cases. Focused
+Vite/Chromium verification passed for icon changes, language-menu keyboard and
+focus behavior, preference persistence, stable EN/CZ control positions, mobile
+menu bounds, active routes and blocked preference storage. Existing Flowento and
+Hand Controller navigation scenarios also passed with the new dropdown helper.
+Desktop and Czech mobile light/dark screenshots were reviewed. No camera or DB
+was used; this is not a new full Docker-backed run.
+
+### Public CV and contacts (2026-09-14)
+
+cv.spec.js adds the 32nd registered scenario and uses the shared reset fixture
+for the full suite. Its exported browser scenario also passed independently
+against Vite and compiled production assets served by a temporary Vite preview.
+These focused checks did not start Docker, use a camera or access a database.
+
+Verified readable English/Czech CV content, public contact destinations, language
+persistence, direct /cv reload, 320/375/768/1440px layouts and both themes. The PDF
+is not fetched just by reading the pages; a real browser download has the expected
+filename, PDF MIME type and original SHA-256. The preview server was stopped.
+Mobile and desktop screenshots were reviewed. All 168 frontend unit tests,
+formatting, lint and production build pass. This is not a new full Docker run.

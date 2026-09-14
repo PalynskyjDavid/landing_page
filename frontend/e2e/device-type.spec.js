@@ -1,3 +1,4 @@
+import { selectLanguage } from "./support/language.js";
 import { test, expect } from "./fixtures.js";
 import { backendURL } from "./support/environment.js";
 
@@ -7,7 +8,7 @@ test("header controls keep their positions across language and theme changes", a
   await page.goto("/game");
   for (const width of [320, 1280]) {
     await page.setViewportSize({ width, height: 850 });
-    const controls = page.locator(".theme-toggle, .language-switcher button, .shell-nav a");
+    const controls = page.locator(".theme-toggle, .language-trigger, .shell-nav a");
     const positions = () =>
       controls.evaluateAll((elements) =>
         elements.map((element) => {
@@ -17,7 +18,7 @@ test("header controls keep their positions across language and theme changes", a
       );
     const original = await positions();
     for (const language of ["Čeština", "English"]) {
-      await page.getByRole("button", { name: language, exact: true }).click();
+      await selectLanguage(page, language);
       await page.locator(".theme-toggle").click();
       await expect.poll(positions).toEqual(original);
     }
@@ -58,9 +59,9 @@ test("device filters constrain saved games, player averages and summary", async 
     backendURL + "/scores/statistics?deviceType=mobile&group=players",
   );
   expect((await summary.json()).summary).toMatchObject({ games: 1, players: 1, averageMs: 100 });
-  await page.getByRole("button", { name: "Čeština", exact: true }).click();
+  await selectLanguage(page, "Čeština");
   await expect(page.getByRole("combobox", { name: "Typ zařízení", exact: true })).toHaveValue(
     "mobile",
   );
-  await expect(page.getByRole("cell", { name: "Mobilní", exact: true })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Mobil", exact: true })).toBeVisible();
 });

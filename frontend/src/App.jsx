@@ -6,6 +6,7 @@ import StatisticsPage from "./pages/StatisticsPage.jsx";
 
 import Shell from "./components/Shell.jsx";
 
+const CvPage = lazy(() => import("./pages/CvPage.jsx"));
 const HandControllerPage = lazy(() => import("./pages/HandControllerPage.jsx"));
 const FlowentoPage = lazy(() => import("./pages/FlowentoPage.jsx"));
 
@@ -39,6 +40,20 @@ export default function App() {
               }
             >
               <HandControllerPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="cv"
+          element={
+            <Suspense
+              fallback={
+                <main className="p-8" aria-busy="true">
+                  CV…
+                </main>
+              }
+            >
+              <CvPage />
             </Suspense>
           }
         />

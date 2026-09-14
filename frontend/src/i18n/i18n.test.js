@@ -58,10 +58,16 @@ describe("localization", () => {
     expect(instance.t("gamesCount", { count: 2 })).toBe("2 hry");
     expect(instance.t("gamesCount", { count: 5 })).toBe("5 her");
     expect(instance.t("gamesCount", { count: 0 })).toBe("0 her");
+    expect(instance.t("scoresSaved", { count: 1 })).toBe("Výsledek uložen");
+    expect(instance.t("scoresSaved", { count: 2 })).toBe("Uloženy 2 výsledky");
+    expect(instance.t("scoresSaved", { count: 5 })).toBe("Uloženo 5 výsledků");
+    expect(instance.t("scoresWaiting", { count: 1 })).toContain("1 neodeslaný výsledek");
+    expect(instance.t("scoresWaiting", { count: 2 })).toContain("2 neodeslané výsledky");
+    expect(instance.t("scoresWaiting", { count: 5 })).toContain("5 neodeslaných výsledků");
     expect(instance.t("scoresQueued", { count: 2 })).toContain("čekají");
     expect(instance.t("scoresQueued", { count: 5 })).toContain("čeká");
-    expect(instance.t("previousScoresSaved", { count: 2 })).toBe("Uložena 2 předchozí skóre");
-    expect(instance.t("previousScoresSaved", { count: 5 })).toBe("Uloženo 5 předchozích skóre");
+    expect(instance.t("previousScoresSaved", { count: 2 })).toBe("Uloženy 2 předchozí výsledky");
+    expect(instance.t("previousScoresSaved", { count: 5 })).toBe("Uloženo 5 předchozích výsledků");
   });
 
   it("interpolates values and falls back to English for unsupported locales", async () => {

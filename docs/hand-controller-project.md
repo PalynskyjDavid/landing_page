@@ -25,63 +25,73 @@ accuracy, an awarded degree, complete Linux support or universal latency results
 No historical benchmark is presented as a fresh measurement. The first-person
 copy remains available for David's editorial review before public deployment.
 
-No original application, webcam, OS-input controller or thesis test package was
-launched. No source application files, installers, camera screenshots or private
-portfolio notes are copied into the web assets. Public repository/download/video
-links remain omitted until their availability and publication scope are confirmed.
+The original desktop application and OS-input controller were not launched.
+No camera photographs, recordings, installers or private portfolio notes are
+published. The only copied binary is the verified public pretrained model.
 
-## Lightweight illustration
+## Live, opt-in MediaPipe demo
 
-The hero uses a native SVG hand-landmark schematic, not a webcam image or a
-MediaPipe demo. The slider adjusts an illustrative thumb-index distance on a
-0-100 scale. A value at or below 30 matches the example; an explicitly enabled
-demo action can then increment a local counter. These are explanatory values,
-not the desktop application's actual recognition thresholds or timing model.
+The former pinch slider is replaced by a real camera/landmark view. Start camera
+requests video only. After permission is granted, the page loads the pinned
+MediaPipe 1.0.1 module worker, WebAssembly runtime and versioned float16 model.
+The worker detects up to two hands; a mirrored canvas displays 21 landmarks per
+hand over the matching video frame. This shows recognition only, not gesture
+bindings, cursor movement, OS clicks or the complete desktop controller.
 
-No OS input, camera permissions, tracking model, backend call or new dependency
-is used by this illustration. It has no animation loop or automatic activity.
-Keyboard controls work, language switches preserve the example state, and
-reloading or leaving the route resets it. Nothing is persisted to browser storage
-by the demo itself; the existing language/theme preferences remain independent.
+Video and landmarks remain in memory inside the browser. There is no upload,
+recording, microphone, analytics event containing landmarks, or persistent demo
+state. All model/runtime requests go to this same website; visitors do not fetch
+scripts or models from Google/CDNs. Normal server access logs can still record
+requests for these static files, but never receive camera images.
 
-The real runtime is explained separately as landmarks -> gesture rules -> timing,
-priority and arming -> operating-system action. This simplified demo does not
-pretend to run those full algorithms.
+Stop camera, route unmount, pagehide, hidden tabs, disconnected tracks, model
+errors and worker timeouts dispose of the stream/worker. Pending permission and
+bitmap results are cancellation-safe. Camera access is never resumed automatically.
+Language switches keep the active session and do not request the camera again.
 
-HandControllerPage is loaded through React.lazy. The illustration ships as page
-code with no images, fonts, video, WASM or remote scripts. Local NGINX measurement
-after the final contrast fix: 3,345 encoded bytes of page JS and 1,791 bytes of CSS,
-about 5.1 kB combined. This excludes the shared app and bundled EN/CZ catalogs.
-The existing Flowento model and Three.js remain independently opt-in.
+## Performance and deployment
 
-## Verification (2026-09-13)
+- React.lazy still defers the project page; no model, WASM or worker is fetched
+  on Home, hover, project navigation or denied camera permission.
+- Inference runs off the UI thread on the CPU, with one bitmap in flight and an
+  upper limit of 15 frames/second. This is a cap, not a guaranteed frame rate.
+- Frames are resized to 640 pixels wide; the preview preserves aspect ratio.
+- Runtime/model assets total about 20 MB raw / 9.43 MB at NGINX's gzip level 5.
+  Content-hashed URLs use the existing immutable cache. Cache reuse depends on
+  browser settings and eviction; this is not an offline guarantee.
+- The production CSP permits same-origin workers and WebAssembly compilation
+  (wasm-unsafe-eval), not arbitrary JavaScript eval or remote scripts. Permissions
+  Policy allows same-origin camera and denies microphone/geolocation. Camera must
+  remain allowed on Home as SPA navigation retains the original document policy.
+- HTTPS or localhost is required. Unsupported browser features and permission,
+  camera and model failures have EN/CZ messages and retry controls.
+- No backend, migration or deployment helper changes are needed. Build/redeploy
+  the web image normally; the model is included in the existing source COPY.
 
-- The shared quality gate passed: Go tests/lint/build, frontend formatting/lint,
-  158 frontend unit tests across 25 files, production build and 12 deployment checks.
-- After the visual contrast correction, frontend formatting/lint/unit tests and
-  the actual frontend Docker build passed again.
-- Four focused Chromium scenarios passed against a fresh production NGINX image:
-  the two new Hand Controller scenarios plus existing Flowento navigation and
-  lazy-loading/cache checks. The same exported scenarios are registered in the
-  ordinary E2E suite for CI.
-- Verified direct URLs with/without trailing slash, reload, homepage navigation,
-  no eager project chunk on Home/hover, no camera request or vision/3D downloads,
-  the demo's activation gate, language continuity and reset on reload.
-- EN/CZ widths 320, 375, 768 and 1440 were checked for page-wide overflow.
-  Desktop, contribution cards and Czech mobile light/dark screenshots were reviewed.
-  A low-contrast status line was corrected and protected by browser assertions.
-- A unique frontend-only test container was removed afterward. No API or database
-  was started or reset; original E2E and development data remained untouched.
-- The preceding 26-scenario full-stack run is a separate checkpoint. The full
-  expanded 28-scenario database-backed suite has not been rerun for this page.
-  There is no new hosted-CI result, commit, push or public deployment.
+See [the model provenance](../frontend/src/assets/hand-controller/README.md) and
+[Google's web guide](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker/web_js).
 
-Run the registered cases with task test:e2e -- hand-controller.spec.js. That normal
-runner resets only its isolated E2E database, as described in the [E2E guide](testing/e2e.md).
+## Verification (2026-09-13, camera replacement)
 
-## Next editorial slice
+Frontend formatting/lint pass, with 164 unit tests across 26 files.
+Lifecycle unit tests cover late permission/bitmap cancellation, video-only access,
+failure cleanup, worker timeout, single-frame backpressure and landmark drawing.
+The model checksum and all EN/CZ status messages have regression checks.
 
-Review the contribution wording and choose an approved screenshot or short
-demonstration recording from the actual desktop app. Keep camera images and
-personal desktop content out unless explicitly approved. No installer or live
-camera functionality is needed just to explain this project on the portfolio.
+Four exported Chromium scenarios cover lazy EN/CZ navigation/mobile layout,
+permission denial/retry, the real model with a synthetic canvas video stream,
+stop/restart, language continuity, route/tab cleanup, and model download failure.
+They pass in Vite and against built assets served with the production CSP and
+Permissions-Policy. These tests never activate a developer's physical webcam.
+The synthetic-video case exercises inference but does not measure real-hand
+recognition quality. A physical-camera check remains for David.
+
+Docker Desktop reported that it could not start, so the actual updated NGINX image
+and full database-backed suite still need verification. The temporary static
+server is not a substitute for a Docker/NGINX check. No DB was started or reset.
+The registered suite now has 30 scenarios; the earlier 26-case full run and
+four old illustration checks are separate historical checkpoints.
+
+Run task test:e2e -- hand-controller.spec.js when Docker is available; that normal
+runner resets its isolated E2E database, as explained in [the E2E guide](testing/e2e.md).
+No commit, push or public deployment is performed by this change.

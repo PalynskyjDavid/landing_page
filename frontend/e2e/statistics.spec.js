@@ -44,9 +44,9 @@ test("statistics filters, player grouping and chart agree with stored games", as
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: testInfo.outputPath("statistics-desktop.png"), fullPage: true });
     await page.getByRole("button", { name: "Dark mode", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Light mode", exact: true })).toHaveCSS(
-      "color",
-      "rgb(0, 0, 0)",
+    await expect(page.getByRole("button", { name: "Light mode", exact: true })).toHaveAttribute(
+      "data-theme",
+      "dark",
     );
     await page.screenshot({ path: testInfo.outputPath("statistics-dark.png"), fullPage: true });
     await page.getByRole("button", { name: "Light mode", exact: true }).click();

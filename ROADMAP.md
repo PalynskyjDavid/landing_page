@@ -28,20 +28,29 @@ unit tests, Go tests, formatting/lint, both builds and 12 deployment safeguards.
 All 26 full-stack Chromium scenarios pass against the production NGINX container,
 real Go API and isolated PostgreSQL test database. This includes EN/CZ continuity,
 device filtering and seven Flowento scenarios. See [the verification record](docs/testing/e2e.md#flowento-localization-and-device-filters-2026-09-13).
-The subsequent Hand Controller slice passes 158 frontend unit tests and four focused
-production-browser checks; its full 28-scenario rerun is still pending.
+The original Hand Controller illustration passed its focused checks. It is now
+replaced by an opt-in MediaPipe camera demo; see its guide for current verification
+and the pending full 32-scenario/Docker run.
 These checks do not replace a full real-device/accessibility review.
 
 ### Next small slice: finish the public homepage
 
-- [ ] Replace the generic hero and developer instructions with David's full-stack
-  introduction and interest in connecting software work with business needs, in EN/CZ.
-- [ ] Add approved public contact, GitHub and CV links; do not publish private
+- [x] Replace the generic hero and developer instructions with David's project
+  introduction and access to his readable full-stack CV, in EN/CZ.
+- [x] Add approved public contact, GitHub and CV links; do not publish private
   CV drafts or editorial notes automatically.
 - [ ] Review Home/Game/Statistics/Flowento on phones, keyboard navigation and both themes.
 - [ ] Review the release diff, commit the approved files and require hosted CI to pass.
 - [ ] Use the existing controlled deployment process: backup, migration 009, matching
   API/frontend images, and a live HTTPS smoke check. No infrastructure expansion is needed.
+
+Public CV/contact slice (2026-09-14): the homepage links to a lazy, readable EN/CZ
+/cv page and the approved English PDF. Email, phone, GitHub and LinkedIn come
+from that CV; no private Word drafts or editorial notes are included. All 168
+frontend unit tests, formatting, lint and build pass. Focused Vite and built-preview
+Chromium checks cover mobile layouts, direct reloads, on-demand downloads and
+PDF checksums. The 32-case Docker suite and publication remain pending.
+See [the public CV guide](docs/cv-and-contact.md).
 
 ### Flowento showcase and loading (2026-09-13)
 
@@ -63,11 +72,12 @@ left stopped; development and production databases were not changed.
 - [x] Add a lazy EN/CZ project page and homepage card for the newer Rust/Tauri prototype.
 - [x] Explain the gesture-to-action pipeline, technology contributions, evaluation
   lessons and prototype limitations, with AI-assisted development described accurately.
-- [x] Add a lightweight SVG pinch-to-click illustration without camera or OS access.
+- [x] Replace the initial illustration with an opt-in, local MediaPipe landmark demo.
+- [x] Lazy-load the worker/model; stop video on exit, hidden tabs, errors and cancellation.
 - [x] Verify 158 frontend unit tests, production build, four focused NGINX browser
   scenarios, EN/CZ widths and desktop/mobile light/dark screenshots.
 - [ ] Review the project wording and select approved real-app screenshots/video if wanted.
-- [ ] Run the expanded 28-scenario full-stack suite before releasing the combined changes.
+- [ ] Run the expanded 32-scenario full-stack suite before releasing the combined changes.
 
 See [the Hand Controller guide](docs/hand-controller-project.md). The 26-test full
 run above predates this new page; focused checks do not replace that full rerun.

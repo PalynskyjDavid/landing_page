@@ -20,7 +20,7 @@ export default function ScoreDeliveryStatus() {
 
   return (
     <section
-      className="mx-auto my-4 w-[98%] max-w-[600px] rounded-xl border p-4"
+      className="mx-auto my-4 w-[98%] max-w-[600px] rounded-xl border-2 p-4"
       aria-live="polite"
     >
       {label && <p>{t(label)}</p>}

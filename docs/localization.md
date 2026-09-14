@@ -8,7 +8,7 @@ Translations are authored in the repository; i18next selects them at runtime.
 
 ## Language selection
 
-The header exposes EN and CZ buttons. Czech's language code is `cs`, not `cz`.
+The header exposes a flag-and-code EN/CZ dropdown. Czech's language code is `cs`, not `cz`.
 Selection order is the saved preference, the first supported browser language,
 then English. Only `reactionGame.language` is saved in localStorage, not the
 translation catalogs. Blocked storage permits switching for the current page.
@@ -36,6 +36,20 @@ API values and filter inputs remain unchanged. Date displays and date filters
 still use UTC, with locale-specific formatting. Error codes/statuses map to
 translated user guidance; raw diagnostic text stays outside the public UI.
 Render translations as React text, never through `dangerouslySetInnerHTML`.
+
+## Czech writing style
+
+Write Czech for a Czech reader, not as a sentence-by-sentence copy of English.
+Keep a friendly, professional tone with consistent vykani, short sentences and
+concrete verbs. Prefer "Načítáme…" to nominal status phrases and "výsledek" to
+"skóre" in game messages. Use concise infinitives for actions. Technical names
+such as React, API and MediaPipe stay unchanged; explain their role plainly.
+
+Project descriptions should say what David actually did without expanding his
+contribution or turning prototypes into finished products. Preserve privacy,
+storage, retry and telemetry limitations even when shortening the wording.
+Edit Czech values only; retain English keys, interpolation variables and all
+plural forms. Update accessible-name assertions when the visible copy changes.
 
 ## Checks
 
@@ -72,3 +86,23 @@ The original E2E database was restored exactly to schema 8 with three scores and
 left stopped. Development/production databases and the live website were not
 changed. Migration 009 and the matching API/frontend release remain pending for
 the target environment. A full real-device/accessibility review is still separate.
+
+## Compact header controls (2026-09-14)
+
+The two language buttons are now a fixed-width menu button showing an inline SVG
+flag and EN/CZ. Menu options keep their full language names and current selection.
+Enter/Space, Up/Down, Home/End, Escape, Tab and outside clicks are supported; focus
+returns to the trigger after selection or Escape. Theme uses a fixed 44px sun/moon
+button with a translated accessible action label and reduced-motion support.
+Neither control loads external images or changes the existing storage policy.
+
+The main navigation uses larger, stable-size links and a filled active tab, with
+no tilt or text-nudge effects. Mobile navigation spans its own row. Keyboard focus
+is visible and the dropdown overlays content without moving it.
+
+E2E language changes now use selectLanguage() from e2e/support/language.js. The
+header.spec.js scenario checks keyboard behavior, persistence, theme icons, active
+routes, menu bounds and layout stability at 320/375/640/768/1440px. These checks,
+the existing Flowento/Hand Controller navigation scenarios and blocked-storage
+checks passed against Vite. No camera or database was used. The full Docker-backed
+suite is still a separate verification step.

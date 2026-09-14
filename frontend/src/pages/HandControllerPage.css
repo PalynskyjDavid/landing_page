@@ -117,7 +117,7 @@
   gap: 1rem;
 }
 .hand-pipeline li {
-  border: 1px solid rgb(var(--border) / 0.18);
+  border: var(--border-width) solid rgb(var(--border) / 0.18);
   border-radius: 12px;
   padding: 1.2rem;
 }
@@ -142,7 +142,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   gap: 2rem;
   padding: 1.75rem;
-  border: 1px solid rgb(var(--border) / 0.12);
+  border: var(--border-width) solid rgb(var(--border) / 0.12);
   background: rgb(var(--fg) / 0.035);
   border-radius: 12px;
 }
@@ -183,7 +183,7 @@
   margin: 0;
   overflow: hidden;
   border-radius: 22px;
-  border: 1px solid #50608a;
+  border: var(--border-width) solid #50608a;
   background: #18223b;
   color: #eef1ff;
 }
@@ -201,60 +201,56 @@
 }
 .hand-demo-heading > span {
   color: #d2d9ed;
-  border: 1px solid #66749f;
+  border: var(--border-width) solid #66749f;
   border-radius: 5px;
   padding: 0.25rem 0.45rem;
   font-size: 0.68rem;
 }
-.hand-illustration {
-  display: block;
-  width: 100%;
-  height: 310px;
+.hand-camera-viewport {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  margin-top: 1rem;
   background: radial-gradient(ellipse at center, #2a3658, #18223b 74%);
 }
-.hand-illustration polyline {
-  fill: none;
-  stroke: #bcaafa;
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.hand-camera-source {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
-.hand-illustration circle {
-  fill: #d7cafa;
-  stroke: #18223b;
-  stroke-width: 2;
+.hand-camera-canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: scaleX(-1);
 }
-.hand-illustration .hand-tip {
-  fill: #ffcc7d;
+.hand-camera-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  padding: 2rem;
+  text-align: center;
 }
-.hand-palm {
-  fill: #bcaafa16;
+.hand-camera-placeholder span {
+  font-size: clamp(3rem, 8vw, 5rem);
+  font-weight: 650;
+  line-height: 1;
+  color: #cbb8ff;
 }
-.hand-pinch-gap {
-  stroke: #ffcc7d;
-  stroke-width: 2;
-  stroke-dasharray: 4 5;
+.hand-camera-placeholder p {
+  color: #d2d9ed;
+  max-width: 25ch;
+  font-size: 0.85rem;
+  line-height: 1.6;
 }
 .hand-demo-controls {
   padding: 0 1.4rem 1rem;
 }
-.hand-range-heading {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-}
-.hand-range-heading span {
-  font-variant-numeric: tabular-nums;
-}
-.hand-demo input {
-  width: 100%;
-  height: 2.75rem;
-  accent-color: #c7b3ff;
-  cursor: pointer;
-}
-.hand-demo-note,
 .hand-demo-count {
   font-size: 0.73rem;
   line-height: 1.7;
@@ -271,7 +267,7 @@
   display: flex;
   align-items: center;
 }
-.hand-demo-state[data-state="ready"] {
+.hand-demo-state[data-state="running"] {
   border-color: #b5efb9;
   color: #b5efb9;
 }
@@ -282,16 +278,13 @@
 }
 .hand-demo button {
   min-height: 2.75rem;
-  border: 1px solid #d2d9ed;
+  border: var(--border-width) solid #d2d9ed;
   border-radius: 7px;
   padding: 0.55rem 0.6rem;
   font-size: 0.78rem;
   background: #eef1ff;
   color: #18223b;
   cursor: pointer;
-}
-.hand-demo button[aria-pressed="true"] {
-  background: #c7b3ff;
 }
 .hand-demo button:disabled {
   background: #283653;
@@ -302,7 +295,7 @@
 .hand-demo button:hover:not(:disabled) {
   background: #d7cafa;
 }
-.hand-demo :is(button, input):focus-visible {
+.hand-demo button:focus-visible {
   outline: 3px solid #ffcc7d;
   outline-offset: 4px;
   box-shadow: none;
@@ -354,9 +347,6 @@
   .hand-demo-controls,
   .hand-demo figcaption {
     padding-inline: 1rem;
-  }
-  .hand-illustration {
-    height: 270px;
   }
   .hand-demo-state {
     min-height: 4rem;

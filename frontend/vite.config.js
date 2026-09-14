@@ -23,6 +23,7 @@ export default defineConfig(({ mode, command }) => {
           },
         }
       : undefined,
+    worker: { format: "es" },
     // Vitest must not discover Playwright's browser scenarios.
     test: {
       include: ["src/**/*.test.{js,jsx}", "e2e/support/**/*.test.js"],

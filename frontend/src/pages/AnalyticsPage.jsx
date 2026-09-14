@@ -11,7 +11,7 @@ export default function AnalyticsPage() {
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
         <h2 className="text-[var(--fs-h2)] font-semibold">Dev Analytics</h2>
 
-        <div className="mt-6 rounded-xl border border-[rgb(var(--fg))] p-5">
+        <div className="mt-6 rounded-xl border-2 border-[rgb(var(--fg))] p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="font-medium">Events summary</p>
@@ -32,7 +32,7 @@ export default function AnalyticsPage() {
           ) : null}
 
           {isError ? (
-            <div className="mt-4 rounded-lg border border-red-500/50 bg-red-500/10 p-4">
+            <div className="mt-4 rounded-lg border-2 border-red-500/50 bg-red-500/10 p-4">
               <p className="font-medium text-red-700 dark:text-red-300">
                 Unable to load analytics summary.
               </p>

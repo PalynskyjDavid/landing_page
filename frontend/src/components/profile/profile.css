@@ -1,0 +1,130 @@
+.home-profile {
+  width: min(1152px, calc(100% - 2rem));
+  margin: 0 auto 4rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: var(--border-width) solid rgb(var(--border) / 0.35);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.profile-overview,
+.profile-contact {
+  min-width: 0;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  scroll-margin-top: 7rem;
+}
+.profile-overview {
+  background: rgb(var(--fg) / 0.035);
+}
+.home-profile h2 {
+  font-size: clamp(1.45rem, 3vw, 1.8rem);
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0.8rem;
+}
+.profile-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.profile-role {
+  font-weight: 650;
+  color: rgb(var(--fg));
+  margin-block: 0.6rem 1rem;
+}
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-block: 1.25rem;
+}
+.profile-actions .ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  text-align: center;
+}
+.profile-note {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: rgb(var(--muted-fg));
+}
+.contact-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+.contact-links li {
+  min-width: 0;
+}
+.contact-links a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 70px;
+  height: 100%;
+  border: var(--border-width) solid rgb(var(--border) / 0.35);
+  border-radius: 12px;
+  padding: 0.7rem;
+  color: rgb(var(--fg));
+  transition: background-color 150ms ease;
+}
+.contact-links a:hover {
+  background: rgb(var(--fg) / 0.07);
+}
+.contact-links a > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.contact-links small {
+  display: block;
+  font-size: 0.75rem;
+  color: rgb(var(--muted-fg));
+  margin-bottom: 0.2rem;
+}
+.contact-links a > span:first-child > span {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.contact-links a.contact-social {
+  justify-content: center;
+  gap: 0.65rem;
+}
+.contact-social-icon {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+}
+.contact-linkedin-mark {
+  fill: rgb(var(--bg));
+}
+.contact-platform {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.contact-links a:focus-visible,
+.profile-actions a:focus-visible {
+  outline: 2px solid rgb(var(--ring));
+  outline-offset: 3px;
+}
+@media (max-width: 760px) {
+  .home-profile {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 400px) {
+  .profile-contact .contact-links {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .contact-links a {
+    transition: none;
+  }
+}
