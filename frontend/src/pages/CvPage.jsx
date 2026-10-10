@@ -31,15 +31,15 @@ export default function CvPage() {
           </a>
         </div>
       </header>
-      <nav className="cv-sections" aria-label={t("CV sections")}>
+      <nav className="cv-sections nav-glow" aria-label={t("CV sections")}>
         {[
           ["profile", "Profile"],
           ["skills", "Technical skills"],
           ["projects", "Selected projects"],
           ["education", "Education"],
           ["languages", "Spoken languages"],
-        ].map(([id, label]) => (
-          <a key={id} href={"#cv-" + id}>
+        ].map(([id, label], index) => (
+          <a key={id} href={"#cv-" + id} style={{ "--nav-glow-order": index }}>
             {t(label)}
           </a>
         ))}

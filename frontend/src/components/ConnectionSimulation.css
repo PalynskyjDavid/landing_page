@@ -21,6 +21,8 @@
   font-weight: 600;
 }
 .connection-lab-state {
+  min-inline-size: 9rem;
+  font-weight: 600;
   font-size: 0.8rem;
   color: rgb(var(--muted-fg));
 }

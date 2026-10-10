@@ -26,17 +26,26 @@ describe("Public CV", () => {
         expect(resources[locale].translation[key], `${locale}: ${key}`).toBeTruthy();
     expect(cvProjects).toHaveLength(3);
     expect(cvEducation).toHaveLength(4);
-    expect(cvSkills[0].note).toBe("Project experience with Go and Rust.");
+    expect(cvSkills[0].note).toBe("Project experience with Python, Go and Rust.");
     expect(cvProjects.filter((project) => project.context.includes("AI-assisted"))).toHaveLength(2);
   });
-  it("ships the approved one-page graphic PDF without modifying its contents", () => {
+  it("ships the reviewed one-page graphic PDF with the expanded skills", () => {
     const pdf = readFileSync(new URL("../assets/cv/David_Palynskyj_CV.pdf", import.meta.url));
     expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
     expect(createHash("sha256").update(pdf).digest("hex")).toBe(
-      "d92918d08d029fe46747b8049fec9c0bbfba5b6d586ae94f0574ee21681dcff0",
+      "0c0e79605d0258b114ed2bd19290028f9016b6c05d012dbcb46c2ac61b647be6",
     );
     expect(pdf.length).toBeLessThan(250000);
     expect(cvDownloadName).toBe("David_Palynskyj_CV.pdf");
+  });
+  it("includes the verified project tools without changing project attribution", () => {
+    const skills = Object.fromEntries(cvSkills.map(({ title, items }) => [title, items]));
+    expect(skills["Frontend"]).toContain("i18next");
+    expect(skills["Graphics and desktop"]).toEqual(["MediaPipe", "OpenCV", "Three.js", "Tauri"]);
+    expect(skills["Deployment"]).toEqual(["Docker Compose", "Linux (Ubuntu)", "NGINX", "Caddy"]);
+    expect(cvSkills[0].note).toContain("Project experience with Python");
+    const handController = cvProjects.find((project) => project.title === "Hand Controller");
+    expect(handController.technologies).toEqual(["Rust", "Tauri", "TypeScript", "MediaPipe"]);
   });
   it("uses only the contact destinations from the CV", () => {
     expect(contactLinks.map((link) => link.href)).toEqual([

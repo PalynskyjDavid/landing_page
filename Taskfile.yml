@@ -25,6 +25,39 @@ tasks:
     desc: Validate deployment boundaries and shell safeguards without starting containers
     cmds:
       - node --test frontend/scripts/production-check.test.js
+      - node --test frontend/scripts/lab-check.test.js
+
+  lab:setup:
+    desc: Build the separate LOCAL reliability lab and apply migrations; preserve its demo data
+    env:
+      VITE_API_URL: /api
+    cmds:
+      - task: frontend:build
+      - docker compose --env-file deploy/lab/compose.env -p landing-page-lab -f compose.lab.yml build api migrate
+      - docker compose --env-file deploy/lab/compose.env -p landing-page-lab -f compose.lab.yml up -d --wait db
+      - docker compose --env-file deploy/lab/compose.env -p landing-page-lab -f compose.lab.yml run --rm --no-deps migrate
+      - docker compose --env-file deploy/lab/compose.env -p landing-page-lab -f compose.lab.yml up -d --wait api
+
+  lab:serve:
+    desc: Run local controller and built UI at http://127.0.0.1:5196/statistics?view=reliability; keep this terminal open
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go run ./cmd/lab-controller
+
+  lab:status:
+    desc: Show only the separate local reliability lab containers
+    cmds:
+      - docker compose --env-file deploy/lab/compose.env -p landing-page-lab -f compose.lab.yml ps -a
+
+  lab:stop:
+    desc: Stop local lab containers after closing lab:serve with Ctrl+C; preserve demo data and limits
+    cmds:
+      - docker compose --env-file deploy/lab/compose.env -p landing-page-lab -f compose.lab.yml stop api db
+
+  lab:test:smoke:
+    desc: Exercise real API and DB recovery in an already running isolated lab (fresh available allowance required)
+    cmds:
+      - node frontend/scripts/lab-smoke.js
 
   deploy:config:check:
     desc: Parse production Compose with placeholder values only (no deployment)

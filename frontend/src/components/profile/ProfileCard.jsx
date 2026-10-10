@@ -20,7 +20,12 @@ export default function ProfileCard() {
           </a>
         </div>
       </section>
-      <section id="contact" aria-labelledby="home-contact-title" className="profile-contact">
+      <section
+        id="contact"
+        tabIndex={-1}
+        aria-labelledby="home-contact-title"
+        className="profile-contact"
+      >
         <h2 id="home-contact-title">{t("Contact")}</h2>
         <p>{t("Have a role or project in mind? Get in touch.")}</p>
         <ContactLinks />

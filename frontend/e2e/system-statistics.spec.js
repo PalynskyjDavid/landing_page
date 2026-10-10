@@ -81,16 +81,23 @@ test("system statistics buffer an outage, count edge errors and expose no reques
 
   await page.goto("/statistics?view=system");
   await expect(page.getByRole("heading", { name: "System statistics", exact: true })).toBeVisible();
-  await expect(page.getByText("Collector reporting", { exact: false })).toBeVisible();
+  await expect(page.getByText("Collecting data", { exact: true })).toBeVisible();
   await expect(page.getByRole("figure")).toHaveCount(2);
+  const about = page.getByRole("button", { name: "About this data", exact: true });
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await about.click();
+  await expect(page.getByRole("tooltip")).toContainText("Zero requests is not proof of uptime.");
+  await about.click();
+  await page.getByText("Recent request statistics", { exact: true }).click();
+  await expect(page.getByRole("table")).toBeVisible();
+  await page.getByText("Recent request statistics", { exact: true }).click();
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
     path: testInfo.outputPath("system-statistics-desktop.png"),
     fullPage: true,
   });
   await page.getByRole("combobox", { name: "API route", exact: true }).selectOption("<unmatched>");
-  await expect(
-    page.getByText("Displayed: Last hour · Unknown API paths.", { exact: false }),
-  ).toBeVisible();
+  await expect(page.locator(".statistics-selection")).toHaveText("Last hour · Unknown API paths");
   await page.setViewportSize({ width: 360, height: 800 });
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
@@ -104,7 +111,7 @@ test("system statistics buffer an outage, count edge errors and expose no reques
   // Theme colors transition for 200ms; inspect the settled state, not a mid-transition frame.
   await expect(page.getByRole("link", { name: "System statistics", exact: true })).toHaveCSS(
     "color",
-    "rgb(0, 0, 0)",
+    "rgb(255, 255, 255)",
   );
   await expect(page.getByRole("link", { name: "Play a game", exact: true })).toHaveCSS(
     "color",

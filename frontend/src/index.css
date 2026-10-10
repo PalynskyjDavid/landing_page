@@ -410,6 +410,8 @@ Layer,              Purpose,                    Example
   opacity: 1;
 }
 .shell-nav {
+  --nav-glow-animation: nav-glow-three;
+  --nav-glow-duration: 6s;
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -438,12 +440,12 @@ Layer,              Purpose,                    Example
 }
 .shell-nav-link.is-active {
   color: #fff;
-  background: #6342af;
+  background: #242424;
   box-shadow: 0 2px 4px rgb(0 0 0 / 0.12);
 }
 .dark .shell-nav-link.is-active {
-  background: #cbb8ff;
-  color: #23183b;
+  background: #e6e6e6;
+  color: #171717;
 }
 .shell-header :is(button, a):focus-visible {
   outline: 2px solid rgb(var(--ring));

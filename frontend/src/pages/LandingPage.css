@@ -1,0 +1,158 @@
+/* Snap the document, not a nested scrolling pane. Proximity allows free scrolling
+   through long sections, zoomed text and short landscape viewports. */
+html:has(.landing-page) {
+  scroll-behavior: smooth;
+  scroll-snap-type: y proximity;
+  scroll-padding-top: 6rem;
+}
+.landing-page {
+  --home-accent: #6342af;
+}
+.dark .landing-page {
+  --home-accent: #cbb8ff;
+}
+.home-section {
+  width: min(1152px, calc(100% - 2rem));
+  margin-inline: auto;
+  min-height: min(720px, calc(100svh - 6rem));
+  padding-block: clamp(2rem, 6vh, 4rem);
+  display: grid;
+  align-content: center;
+  gap: 1.5rem;
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+  scroll-margin-top: 1rem;
+}
+.home-section + .home-section {
+  border-top: 2px solid rgb(var(--border) / 0.18);
+}
+.home-intro h1 {
+  max-width: 15ch;
+  font-size: clamp(2.4rem, 6vw, 4.8rem);
+}
+.home-intro .profile-eyebrow {
+  margin: 0;
+}
+.home-lead {
+  max-width: 58ch;
+  line-height: 1.7;
+  font-size: 1.05rem;
+}
+.home-section h2 {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 700;
+  line-height: 1.15;
+}
+.home-section-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+}
+.home-section-links a {
+  padding-block: 0.7rem;
+  text-underline-offset: 0.3rem;
+}
+.home-section-links a:hover {
+  text-decoration: underline;
+}
+.home-section-links span {
+  color: var(--home-accent);
+  margin-left: 0.3rem;
+}
+.home-skills {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.home-skills > div {
+  padding: 1.2rem;
+  border: 2px solid rgb(var(--border) / 0.25);
+  border-radius: 14px;
+}
+.home-skills h3 {
+  font-weight: 650;
+  margin-bottom: 0.9rem;
+}
+.home-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+}
+.home-tags li {
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  background: rgb(var(--fg) / 0.06);
+  font-size: 0.85rem;
+}
+.home-project {
+  grid-template-columns: minmax(100px, 1fr) 3fr;
+  align-items: center;
+  gap: 2rem;
+}
+.home-project-number {
+  font-size: clamp(4rem, 12vw, 9rem);
+  font-weight: 750;
+  color: var(--home-accent);
+  opacity: 0.3;
+  line-height: 1;
+}
+.home-project-card {
+  min-width: 0;
+  display: grid;
+  justify-items: start;
+  gap: 1.25rem;
+}
+.home-project-card .profile-eyebrow {
+  margin: 0;
+}
+.home-project-card .ui-btn {
+  min-height: 44px;
+}
+.home-profile-block .home-profile {
+  width: 100%;
+  margin: 0;
+}
+.landing-page :is(#contact, #cv) {
+  scroll-margin-top: 1rem;
+  scroll-snap-align: start;
+}
+@media (max-width: 640px) {
+  html:has(.landing-page) {
+    scroll-padding-top: 1rem;
+  }
+  html:has(.landing-page) .shell-header {
+    /* The mobile header scrolls with the page. Keep its controls reachable
+       instead of snapping past them to the first content block. */
+    scroll-snap-align: start;
+  }
+  .home-section {
+    min-height: calc(100svh - 2rem);
+  }
+  .home-intro {
+    min-height: calc(100svh - 9rem);
+  }
+  .home-skills {
+    grid-template-columns: 1fr;
+  }
+  .home-skills > div {
+    padding: 1rem;
+  }
+  .home-project {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  .home-project-number {
+    font-size: 3rem;
+  }
+  .home-profile-block {
+    min-height: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:has(.landing-page) {
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+  }
+}

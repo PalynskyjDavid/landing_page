@@ -7,7 +7,7 @@ export const cvSkills = [
   {
     title: "Programming languages",
     items: ["JavaScript", "TypeScript", "SQL"],
-    note: "Project experience with Go and Rust.",
+    note: "Project experience with Python, Go and Rust.",
   },
   {
     title: "Frontend",
@@ -20,6 +20,7 @@ export const cvSkills = [
       "Bootstrap",
       "React Router",
       "Recharts",
+      "i18next",
     ],
   },
   {
@@ -39,16 +40,16 @@ export const cvSkills = [
     ],
   },
   {
-    title: "Testing and delivery",
-    items: [
-      "Playwright",
-      "Vitest",
-      "Git",
-      "GitHub Actions",
-      "Docker Compose",
-      "ESLint",
-      "Prettier",
-    ],
+    title: "Graphics and desktop",
+    items: ["MediaPipe", "OpenCV", "Three.js", "Tauri"],
+  },
+  {
+    title: "Testing and tools",
+    items: ["Playwright", "Vitest", "Git", "GitHub Actions", "ESLint", "Prettier"],
+  },
+  {
+    title: "Deployment",
+    items: ["Docker Compose", "Linux (Ubuntu)", "NGINX", "Caddy"],
   },
 ];
 

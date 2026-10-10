@@ -23,3 +23,7 @@ frontend/test-results/
 frontend/playwright-report/
 .backups/
 .deploy/
+# Durable limits for the separate local reliability lab.
+.lab/
+# Private portfolio research, contribution evidence and unpublished CV drafts.
+/docs/portfolio/

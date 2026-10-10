@@ -2,6 +2,7 @@ import { useI18n } from "../i18n/useI18n.js";
 import { useSyncExternalStore } from "react";
 import { connectionSimulation } from "../lib/connectionSimulation.js";
 import "./ConnectionSimulation.css";
+import InfoHint from "./InfoHint.jsx";
 
 function useSimulation() {
   return useSyncExternalStore(
@@ -63,7 +64,15 @@ export function ConnectionSimulationBanner() {
   return (
     <aside className="connection-simulation-banner" aria-label={t("Connection simulation")}>
       <p role="status">
-        {t("Connection loss simulation active — this tab’s API requests are blocked.")}
+        <span className="connection-simulation-long">
+          {t("Connection loss simulation active — this tab’s API requests are blocked.")}
+        </span>
+        <span className="connection-simulation-short">
+          {t("Simulation active")}
+          <InfoHint label={t("Connection simulation")} iconOnly>
+            {t("Connection loss simulation active — this tab’s API requests are blocked.")}
+          </InfoHint>
+        </span>
       </p>
       <button
         type="button"

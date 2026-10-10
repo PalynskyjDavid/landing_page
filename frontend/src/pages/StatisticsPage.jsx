@@ -3,22 +3,28 @@ import { Link, useSearchParams } from "react-router-dom";
 import SystemStatistics from "../components/SystemStatistics.jsx";
 import ReactionLeaderboard from "../components/ReactionLeaderboard.jsx";
 import ScoreDeliveryStatus from "../components/ScoreDeliveryStatus.jsx";
+import ContainerLab from "../components/ContainerLab.jsx";
+import { containerLabEnabled } from "../lib/containerLab.js";
 import "./StatisticsPage.css";
 
 export default function StatisticsPage() {
   const { t } = useI18n();
   const [search] = useSearchParams();
   const system = search.get("view") === "system";
+  const labEnabled = containerLabEnabled();
+  const reliability = labEnabled && search.get("view") === "reliability";
+  const games = !system && !reliability;
   return (
     <main className="statistics-page">
       <header className="statistics-intro">
         <div>
-          <h1>{system ? t("System statistics") : t("Reaction statistics")}</h1>
-          <p>
-            {system
-              ? t("Explore recorded API traffic and response times.")
-              : t("Explore saved games or compare players. Lower reaction times are better.")}
-          </p>
+          <h1>
+            {reliability
+              ? t("lab.health.title")
+              : system
+                ? t("System statistics")
+                : t("Reaction statistics")}
+          </h1>
         </div>
         <Link className="ui-btn" to="/game">
           {t("Play a game")}
@@ -26,8 +32,8 @@ export default function StatisticsPage() {
       </header>
       <nav className="statistics-views" aria-label={t("Statistics views")}>
         <Link
-          className={`ui-btn ${!system ? "ui-surface-inverse" : ""}`}
-          aria-current={!system ? "page" : undefined}
+          className={`ui-btn ${games ? "ui-surface-inverse" : ""}`}
+          aria-current={games ? "page" : undefined}
           to="?view=games"
         >
           {t("Game statistics")}
@@ -39,16 +45,18 @@ export default function StatisticsPage() {
         >
           {t("System statistics")}
         </Link>
+        {labEnabled && (
+          <Link
+            className={`ui-btn ${reliability ? "ui-surface-inverse" : ""}`}
+            aria-current={reliability ? "page" : undefined}
+            to="?view=reliability"
+          >
+            {t("lab.tab")}
+          </Link>
+        )}
       </nav>
-      {!system && (
-        <p className="statistics-note">
-          {t(
-            "Scores are browser-reported, not verified competitive results. “My scores” uses this browser’s anonymous cookie, not a login.",
-          )}
-        </p>
-      )}
       <ScoreDeliveryStatus />
-      {system ? <SystemStatistics /> : <ReactionLeaderboard />}
+      {reliability ? <ContainerLab /> : system ? <SystemStatistics /> : <ReactionLeaderboard />}
     </main>
   );
 }

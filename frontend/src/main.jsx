@@ -6,8 +6,7 @@ import App from "./App.jsx";
 import { setApiClientHooks } from "./lib/apiClient.js";
 import { queryClient } from "./lib/queryClient.js";
 import { ScoreDeliveryProvider } from "./providers/ScoreDeliveryProvider.jsx";
-import ScoreDeliveryNotifications from "./components/ScoreDeliveryNotifications.jsx";
-import { ConnectionSimulationBanner } from "./components/ConnectionSimulation.jsx";
+import GlobalNotices from "./components/GlobalNotices.jsx";
 import "./index.css";
 import "./i18n/index.js";
 
@@ -29,8 +28,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <ScoreDeliveryProvider>
-        <ScoreDeliveryNotifications />
-        <ConnectionSimulationBanner />
+        <GlobalNotices />
         <BrowserRouter>
           <App />
         </BrowserRouter>

@@ -52,8 +52,24 @@ export async function publicCv({ page }) {
   await expect(page.locator(".cv-projects article")).toHaveCount(3);
   await expect(page.locator(".cv-education li")).toHaveCount(4);
   await expect(
-    page.getByText("S Go a Rustem mám zkušenosti z projektů.", { exact: true }),
+    page.getByText("S Pythonem, Go a Rustem mám zkušenosti z projektů.", { exact: true }),
   ).toBeVisible();
+  for (const technology of [
+    "MediaPipe",
+    "OpenCV",
+    "Three.js",
+    "Tauri",
+    "i18next",
+    "Linux (Ubuntu)",
+    "NGINX",
+    "Caddy",
+  ]) {
+    await expect(page.locator("#cv-skills").getByText(technology, { exact: true })).toBeVisible();
+  }
+  await expect(
+    page.getByRole("heading", { name: "Grafika a desktopové aplikace", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Nasazení", exact: true })).toBeVisible();
   await expect(page.locator(".contact-social")).toHaveCount(2);
   for (const social of await page.locator(".contact-social").all()) {
     await expect(social).not.toContainText(/Palynskyj|David/);
@@ -70,7 +86,7 @@ export async function publicCv({ page }) {
   expect(await download.failure()).toBeNull();
   const pdf = await readFile(await download.path());
   expect(createHash("sha256").update(pdf).digest("hex")).toBe(
-    "d92918d08d029fe46747b8049fec9c0bbfba5b6d586ae94f0574ee21681dcff0",
+    "0c0e79605d0258b114ed2bd19290028f9016b6c05d012dbcb46c2ac61b647be6",
   );
   const response = await page.request.get(href);
   expect(response.ok()).toBe(true);

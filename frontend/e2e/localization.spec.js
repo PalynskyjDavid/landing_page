@@ -5,6 +5,7 @@ import { backendURL } from "./support/environment.js";
 test.use({ locale: "en-GB" });
 
 test("language switching keeps the active game and queued score intact", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "userAgentData", { value: { mobile: true } });
   });
@@ -21,7 +22,14 @@ test("language switching keeps the active game and queued score intact", async (
   await selectLanguage(page, "Čeština");
   await expect(page.getByRole("heading", { name: "Hotovo!" })).toBeVisible();
   await page.getByLabel("Jméno v žebříčku (nepovinné)").fill("Žofie");
+  const resultTop = () =>
+    page
+      .getByRole("heading", { name: "Hotovo!", exact: true })
+      .evaluate((el) => el.getBoundingClientRect().top + scrollY);
+  const beforeNotice = await resultTop();
   await page.getByRole("button", { name: "Simulovat výpadek spojení" }).click();
+  await expect(page.locator(".app-notices")).toHaveCSS("position", "fixed");
+  expect(await resultTop()).toBeCloseTo(beforeNotice, 0);
   const saveWidth = (await page.locator(".score-save-button").boundingBox()).width;
   await page.getByRole("button", { name: "Uložit výsledek", exact: true }).click();
   await expect(page.getByRole("button", { name: "Čeká na odeslání" })).toBeVisible();
@@ -31,6 +39,10 @@ test("language switching keeps the active game and queued score intact", async (
   );
   await selectLanguage(page, "English");
   await expect(page.locator(".delivery-notice-title")).toHaveText("Scores saved for later");
+  const bannerBox = await page.locator(".connection-simulation-banner").boundingBox();
+  const noticeBox = await page.locator(".delivery-notice").boundingBox();
+  expect(bannerBox.y + bannerBox.height).toBeLessThanOrEqual(noticeBox.y);
+  expect(noticeBox.y + noticeBox.height).toBeLessThanOrEqual(800);
   await expect(page.getByLabel("Display name (optional)")).toHaveValue("Žofie");
   await expect(page.getByRole("button", { name: "Queued for delivery" })).toBeVisible();
   expect((await page.locator(".score-save-button").boundingBox()).width).toBe(saveWidth);
@@ -69,7 +81,7 @@ test("Czech statistics preserve filter values and fit a narrow mobile viewport",
   await expect(page.getByRole("combobox", { name: "Period", exact: true })).toHaveValue("7d");
   await selectLanguage(page, "Čeština");
   await page.getByRole("link", { name: "Systémové statistiky", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Provoz API" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Systémové statistiky" })).toBeVisible();
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
     .toBe(true);

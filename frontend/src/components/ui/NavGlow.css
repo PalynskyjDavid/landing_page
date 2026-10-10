@@ -1,0 +1,59 @@
+.nav-glow {
+  --nav-glow-color: 88 88 88;
+  --nav-glow-fill: 0.13;
+  --nav-glow-halo: 0.2;
+}
+.dark .nav-glow {
+  --nav-glow-color: 224 224 224;
+  --nav-glow-fill: 0.14;
+  --nav-glow-halo: 0.18;
+}
+.nav-glow > a {
+  position: relative;
+  isolation: isolate;
+}
+.nav-glow > a::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  /* Behind the text, so the tint never dims the label or its focus outline. */
+  background: rgb(var(--nav-glow-color) / var(--nav-glow-fill));
+  box-shadow:
+    0 0 0 1px rgb(var(--nav-glow-color) / 0.35),
+    0 0 16px 3px rgb(var(--nav-glow-color) / var(--nav-glow-halo));
+}
+@media screen and (prefers-reduced-motion: no-preference) {
+  .nav-glow > a::before {
+    animation: var(--nav-glow-animation) var(--nav-glow-duration) ease-in-out infinite both;
+    animation-delay: calc(var(--nav-glow-order, 0) * 2s);
+  }
+  .nav-glow:is(:hover, :focus-within) > a::before {
+    animation-play-state: paused;
+  }
+}
+/* Both rows use a three-second pulse with a new pulse every two seconds.
+   The one-second crossfade also spans the last-to-first cycle boundary. */
+@keyframes nav-glow-three {
+  0%,
+  50%,
+  100% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+}
+@keyframes nav-glow-five {
+  0%,
+  30%,
+  100% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+}

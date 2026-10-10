@@ -1,6 +1,25 @@
 import { test, expect } from "./fixtures.js";
 import { backendURL } from "./support/environment.js";
 
+test("normal statistics and game do not expose or poll the isolated lab", async ({ page }) => {
+  const labRequests = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.startsWith("/lab-api/")) labRequests.push(request.url());
+  });
+  await page.goto("/statistics?view=reliability");
+  await expect(
+    page.getByRole("heading", { name: "Reaction statistics", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Statistics views" }).getByRole("link"),
+  ).toHaveCount(2);
+  await expect(page.locator(".container-lab")).toHaveCount(0);
+  await page.goto("/game");
+  await expect(page.getByText("Click to start.", { exact: true })).toBeVisible();
+  await expect(page.locator(".container-lab")).toHaveCount(0);
+  expect(labRequests).toEqual([]);
+});
+
 test("statistics filters, player grouping and chart agree with stored games", async ({
   page,
   playwright,
@@ -27,6 +46,10 @@ test("statistics filters, player grouping and chart agree with stored games", as
       }
     }
     await page.goto("/statistics");
+    await expect(page.getByRole("combobox", { name: "Column", exact: true })).toHaveCount(0);
+    await page.getByText("Sorting", { exact: true }).click();
+    await expect(page.getByRole("combobox", { name: "Column", exact: true })).toHaveCount(2);
+    await page.getByText("Sorting", { exact: true }).click();
     await expect(page.getByRole("table").getByRole("row")).toHaveCount(6);
     await page.getByRole("combobox", { name: "View", exact: true }).selectOption("players");
     await page.getByRole("combobox", { name: "Period", exact: true }).selectOption("7d");
@@ -63,6 +86,14 @@ test("statistics filters, player grouping and chart agree with stored games", as
     await expect(page.getByRole("table").getByRole("row").nth(1)).toContainText("200 ms");
 
     await page.setViewportSize({ width: 360, height: 800 });
+    await expect(page.getByRole("table")).toHaveCount(0);
+    const cards = page.getByRole("region", { name: "Matching games", exact: true });
+    await expect(cards.getByRole("listitem")).toHaveCount(1);
+    await expect(cards).toContainText("Alice");
+    await expect(cards).toContainText("200 ms");
+    await expect(cards).toContainText("Misclicks/game");
+    await expect(cards).toContainText("Latest game");
+    await expect(cards).toContainText("UTC");
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
       .toBe(true);
@@ -74,7 +105,11 @@ test("statistics filters, player grouping and chart agree with stored games", as
       page.getByText("No scores match these filters. Play a game or widen the filters."),
     ).toBeVisible();
     await page.getByRole("button", { name: "Reset filters" }).click();
-    await expect(page.getByRole("table").getByRole("row")).toHaveCount(6);
+    await expect(cards.getByRole("listitem")).toHaveCount(5);
+    for (const width of [320, 375, 740]) {
+      await page.setViewportSize({ width, height: 800 });
+      await expect.poll(() => cards.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    }
   } finally {
     await other.dispose();
   }

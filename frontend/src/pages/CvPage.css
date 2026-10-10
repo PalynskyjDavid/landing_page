@@ -20,6 +20,8 @@
   font-size: clamp(2rem, 5vw, 3rem);
 }
 .cv-sections {
+  --nav-glow-animation: nav-glow-five;
+  --nav-glow-duration: 10s;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -33,7 +35,8 @@
   border: var(--border-width) solid rgb(var(--border) / 0.35);
   border-radius: 10px;
 }
-.cv-sections a:hover {
+.cv-sections a:hover,
+.cv-sections a:focus-visible {
   background: rgb(var(--fg) / 0.06);
 }
 .cv-section {

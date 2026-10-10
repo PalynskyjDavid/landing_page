@@ -361,7 +361,8 @@ Depends on Stages 1 and 2.
 - [x] Establish the player cookie before saving a score; document direct-client compatibility and lost-response safety in ADR 0003. **Codex**
 - [ ] Decide whether to generate Go server types and frontend client types. **Pair**
 - [ ] Define migration ownership and compatibility rules. **Pair**
-- [ ] Remove or implement orphaned frontend calls such as `/events`. **David**
+- [x] Remove the unused `/events` API helper and mutation hook; retire the unrouted
+  analytics page while keeping `/dev/analytics` redirected to `/statistics`. **Codex**
 
 The behavior guide is `docs/contracts/reaction-results-api.md`; the machine-readable
 contract is `docs/contracts/openapi.yaml`. Deferred statistics/authentication/profile
@@ -519,12 +520,27 @@ Depends on successful staging operation and observable failure modes.
 - [ ] Define application and database rollback procedures. **David**
 - [ ] Tag releases and maintain a changelog. **David**
 
+## Reliability lab: bounded local controller
+
+- [x] Add an isolated API/DB demo with shared, durable limits: one active outage,
+  3 stop attempts and 90 reserved seconds per rolling 10 minutes, 30-second cooldown.
+- [x] Add Stop for 30 seconds, manual Stop (60-second safety cap), and Start controls
+  in EN/CZ; restore on controller restart or graceful shutdown.
+- [x] Move container controls into Statistics → Reliability lab, with an independent
+  five-minute health sampler, liveness/readiness timelines, latency graphs and
+  accessible recent measurements. Verify real API/DB outages and mobile EN/CZ layouts.
+- [ ] Publish only after selecting a separate demo host, an independent recovery
+  watchdog, access/abuse controls and an operator recovery runbook.
+
+See `docs/reliability-lab.md`. This does not grant Docker access to the production
+API and does not stop production services.
+
 ## Decisions still needed
 
 - What exact projects and supporting links belong on the portfolio home page?
 - Which features belong in the first complete release?
 - What anonymous identity and display-name rules should the leaderboard use?
-- Should the first reliability demo simulate failure in the application or control isolated containers?
+- Where should the isolated reliability lab be hosted if it is made public?
 - What deployment model should the project eventually teach?
 
 ## Review notes

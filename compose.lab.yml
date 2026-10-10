@@ -1,0 +1,79 @@
+# Deliberately separate from production, development and automated E2E resources.
+name: landing-page-lab
+
+x-logging: &bounded-logging
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+services:
+  db:
+    image: postgres:16.15@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94
+    labels:
+      landing-page.reliability-lab: "true"
+    environment:
+      POSTGRES_DB: reaction_lab
+      POSTGRES_USER: lab_user
+      POSTGRES_PASSWORD: lab_password
+    volumes:
+      - data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U lab_user -d reaction_lab"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    restart: "no"
+    logging: *bounded-logging
+    mem_limit: 256m
+    pids_limit: 128
+    security_opt: ["no-new-privileges:true"]
+
+  api:
+    image: landing-page-api:lab
+    build: { context: ./my-backend, target: api }
+    labels:
+      landing-page.reliability-lab: "true"
+    environment:
+      DATABASE_URL: postgresql://lab_user:lab_password@db:5432/reaction_lab?sslmode=disable
+      BACKEND_PORT: "3001"
+      CORS_ORIGIN: http://127.0.0.1:5196
+      COOKIE_SECURE: "false"
+    ports:
+      - "127.0.0.1:3117:3001"
+    depends_on:
+      db: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "/app/api", "healthcheck"]
+      interval: 1s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: "no"
+    logging: *bounded-logging
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    pids_limit: 128
+
+  migrate:
+    image: landing-page-migrate:lab
+    build: { context: ./my-backend, target: migrate }
+    profiles: [tools]
+    labels:
+      landing-page.reliability-lab: "true"
+    environment:
+      DATABASE_URL: postgresql://lab_user:lab_password@db:5432/reaction_lab?sslmode=disable
+    restart: "no"
+    logging: *bounded-logging
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    pids_limit: 64
+
+volumes:
+  data:
+    labels:
+      landing-page.reliability-lab: "true"

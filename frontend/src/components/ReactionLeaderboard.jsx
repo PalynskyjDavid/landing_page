@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useStatsQuery } from "../hooks/useStatsQuery.js";
 import { defaultStatisticsFilters, statisticsParams } from "../lib/statisticsFilters.js";
 import PlayerAveragesChart from "./PlayerAveragesChart.jsx";
+import InfoHint from "./InfoHint.jsx";
+import ScoreCards from "./ScoreCards.jsx";
 
 const columns = [
   ["averageMs", "Average"],
@@ -18,11 +20,11 @@ const ranges = [
 ];
 
 export default function ReactionLeaderboard() {
-  const { t, n, date, errorText } = useI18n();
+  const { t, n, date } = useI18n();
   const [draft, setDraft] = useState(defaultStatisticsFilters);
   const [applied, setApplied] = useState(defaultStatisticsFilters);
   const stats = useStatsQuery(statisticsParams(applied));
-  const stale = stats.isFetching && stats.data !== undefined;
+  const stale = (stats.isFetching || stats.isError) && stats.data !== undefined;
   const displayed = stats.data?.selection ?? statisticsParams(applied);
   const grouped = displayed.group === "players";
   const entries = stats.data?.entries ?? [];
@@ -133,33 +135,36 @@ export default function ReactionLeaderboard() {
             </>
           )}
         </div>
-        <div className="statistics-sort-grid">
-          {["primary", "secondary"].map((level, index) => (
-            <fieldset key={level}>
-              <legend>{t("Sort {{level}}", { level: index + 1 })}</legend>
-              <label>
-                {t("Column")}
-                <select value={draft[level]} onChange={(e) => change(level, e.target.value)}>
-                  {columns.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {t(label)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                {t("Order")}
-                <select
-                  value={draft[`${level}Direction`]}
-                  onChange={(e) => change(`${level}Direction`, e.target.value)}
-                >
-                  <option value="best">{t("Lowest / oldest first")}</option>
-                  <option value="worst">{t("Highest / newest first")}</option>
-                </select>
-              </label>
-            </fieldset>
-          ))}
-        </div>
+        <details className="statistics-sort-details">
+          <summary>{t("stats.sorting")}</summary>
+          <div className="statistics-sort-grid">
+            {["primary", "secondary"].map((level, index) => (
+              <fieldset key={level}>
+                <legend>{t("Sort {{level}}", { level: index + 1 })}</legend>
+                <label>
+                  {t("Column")}
+                  <select value={draft[level]} onChange={(e) => change(level, e.target.value)}>
+                    {columns.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {t(label)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  {t("Order")}
+                  <select
+                    value={draft[`${level}Direction`]}
+                    onChange={(e) => change(`${level}Direction`, e.target.value)}
+                  >
+                    <option value="best">{t("Lowest / oldest first")}</option>
+                    <option value="worst">{t("Highest / newest first")}</option>
+                  </select>
+                </label>
+              </fieldset>
+            ))}
+          </div>
+        </details>
         <details>
           <summary>{t("Reaction time and misclick ranges")}</summary>
           <p className="statistics-note">
@@ -209,9 +214,11 @@ export default function ReactionLeaderboard() {
           >
             {t("Reset filters")}
           </button>
-          <span className="statistics-note">
-            {t("Apply sends one request for the selected filters.")}
-          </span>
+          {JSON.stringify(draft) !== JSON.stringify(applied) && (
+            <span className="statistics-note" role="status">
+              {t("stats.pendingFilters")}
+            </span>
+          )}
         </div>
       </form>
 
@@ -227,22 +234,29 @@ export default function ReactionLeaderboard() {
           <span aria-hidden="true">↻</span> {stats.isFetching ? t("Refreshing…") : t("Refresh")}
         </button>
       </div>
-      <p className="statistics-status" role="status">
-        {stats.isPlaceholderData
-          ? t("Previous selection — refreshing…")
-          : stale
-            ? t("Stale data — refreshing…")
-            : stats.isFetching
-              ? t("Loading statistics…")
-              : ""}
-      </p>
-      {stats.isError && (
-        <p role="alert">
-          {t("Could not load statistics: {{message}}", { message: errorText(stats.error) })}
-        </p>
-      )}
+      <div className="statistics-toolbar-status" role="status">
+        <div>
+          {(stats.isError || stats.isFetching) && (
+            <InfoHint
+              label={t(
+                stats.isError ? (stats.data ? "stats.stale" : "stats.unavailable") : "Refreshing…",
+              )}
+              tone={stats.isError ? "warning" : "neutral"}
+            >
+              {stats.isError
+                ? t(stats.error?.status ? "stats.httpFailure" : "stats.noResponse", {
+                    status: stats.error?.status,
+                  })
+                : t(stats.isPlaceholderData ? "stats.previousHint" : "stats.refreshHint")}
+            </InfoHint>
+          )}
+        </div>
+        <InfoHint label={t("stats.aboutData")} iconOnly>
+          {t("stats.scoresHint")}
+        </InfoHint>
+      </div>
       {stats.data && (
-        <div aria-busy={stale} className={stale ? "statistics-stale" : ""}>
+        <div aria-busy={stats.isFetching} className={stale ? "statistics-stale" : ""}>
           <dl className="statistics-summary" aria-label={t("Filtered summary")}>
             {[
               [t("Matching games"), summary.games],
@@ -259,20 +273,18 @@ export default function ReactionLeaderboard() {
               </div>
             ))}
           </dl>
-          <p className="statistics-note">
-            {t("Summary covers all matching games, not just the displayed Top {{count}}.", {
-              count: displayed.limit,
-            })}{" "}
-            {grouped
-              ? t("Each row is one player; misclicks are averaged per game.")
-              : t("Each row is one five-round game.")}
-          </p>
           {entries.length === 0 ? (
             <p>{t("No scores match these filters. Play a game or widen the filters.")}</p>
           ) : (
             <>
               {grouped && <PlayerAveragesChart entries={entries} />}
-              <div className="statistics-table-scroll">
+              <ScoreCards
+                entries={entries}
+                grouped={grouped}
+                limit={displayed.limit}
+                heading={heading}
+              />
+              <div className="statistics-table-scroll statistics-desktop-results">
                 <table>
                   <caption>
                     {grouped ? t("Players ranked using their matching games") : t("Matching games")}{" "}

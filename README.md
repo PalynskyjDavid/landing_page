@@ -61,6 +61,20 @@ queued scores. Optional frontend overrides are in `frontend/.env.example`.
 This direct development path bypasses NGINX: it does not demonstrate edge rate
 limits or collect new System statistics. Use the full container stack for those.
 
+### Interactive container outage controls: local only
+
+Run `task lab:setup` and then `task lab:serve`; open
+<http://127.0.0.1:5196/statistics?view=reliability>. The Statistics reliability tab
+shows live health, a five-minute availability timeline and response times.
+You can stop the demo API or DB, restore it
+manually, or wait for the safety timer. Shared stop/time budgets survive refreshes
+and controller restarts. The dedicated `landing-page-lab` database is not your
+development, E2E or production database.
+
+See [the reliability lab guide](docs/reliability-lab.md) for limits, recovery,
+test commands and remaining work before any public hosting. These controls are
+not exposed by the normal public website or production API.
+
 ### Container demo and browser tests: disposable data
 
 After `npm ci --prefix frontend`:
