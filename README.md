@@ -21,7 +21,7 @@ git clone https://github.com/PalynskyjDavid/landing_page.git
 cd landing_page
 ```
 
-Use Node **22.23.2**, Go **1.26.8**, Task **3.53.1**, and Docker with the Compose
+Use Node **22.23.2**, Go **1.26.9**, Task **3.53.1**, and Docker with the Compose
 plugin and Linux containers. The versions are recorded in `.nvmrc`, the Go modules,
 and CI. Install golangci-lint **2.13.1** to run the full quality gate. Tern and
 frontend tooling are pinned by the repository; no global Tern/Vite installation

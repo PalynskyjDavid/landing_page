@@ -1,6 +1,6 @@
 module github.com/palyndav/my-backend/tools
 
-go 1.26.8
+go 1.26.9
 
 tool github.com/jackc/tern/v2
 

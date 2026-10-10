@@ -12,7 +12,7 @@ four-container stack; direct hot-reload API traffic is not counted by NGINX.
 
 ## Supported local versions
 
-- Go 1.26.8, as declared by `my-backend/go.mod`.
+- Go 1.26.9, as declared by `my-backend/go.mod`.
 - Node.js 22.23.2, as declared by `.nvmrc`.
 - Task 3.53.1.
 - golangci-lint 2.13.1.
